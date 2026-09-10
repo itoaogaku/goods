@@ -1,0 +1,81 @@
+# wix-to-notion-migration
+
+Wix Storesの注文データ（2025年3月以降）をNotionデータベースへ移行するCLIツールです。
+
+## セットアップ
+
+```bash
+cd migration
+npm install
+cp .env.example .env
+# .env を編集して NOTION_API_KEY / NOTION_DATABASE_ID を設定
+```
+
+Notion側の準備:
+
+1. https://www.notion.so/my-integrations で Internal Integration を作成し、Content の Read / Insert 権限を付与
+2. 移行先データベースを作成し（プロパティは下記スキーマの通り）、そのページ右上の「…」→「コネクト」から作成したインテグレーションを接続
+3. データベースURLから `NOTION_DATABASE_ID` を取得（`https://www.notion.so/xxxxx?v=...` の `xxxxx` 部分、ハイフンなしでも可）
+
+## Notionデータベースのスキーマ
+
+| プロパティ名 | 型 | 説明 |
+| --- | --- | --- |
+| 注文ID | タイトル | Wixの注文番号。1注文に複数商品が含まれる場合、同じ注文IDが複数行に出現します |
+| 明細ID | テキスト | `{注文ID}_{行番号}` の一意キー。重複登録防止に使用します |
+| 販売日時 | 日付 | 注文日時 |
+| 商品名 | テキスト | 商品名 |
+| 数量 | 数値 | 購入数量 |
+| 単価 | 数値 | 商品単価（税込） |
+| 合計金額 | 数値 | 数量 × 単価（移行スクリプトが計算して書き込みます。Notion側のformulaにはしません） |
+| ステータス | セレクト | `未発送` / `発送済` / `キャンセル` / `返金` の4択 |
+
+商品名・単価は、社内で管理している価格表（品名・カラー・サイズ・定価など）と突き合わせて表記を統一しておくと、後段のダッシュボードの商品別ランキングが綺麗に集計できます。
+
+## 使い方
+
+### CSVエクスポートから移行する（推奨）
+
+Wixダッシュボードの「注文」から注文データをCSVエクスポートし、以下を実行します。
+
+```bash
+npm run migrate -- csv ./orders.csv --since 2025-03-01
+```
+
+列名がデフォルト（`Order Number` / `Order Date` / `Item Name` / `Item Quantity` / `Item Price` / `Fulfillment Status`）と異なる場合は `--col-*` オプションで上書きしてください。実際のエクスポートファイルを開いてヘッダー名を確認してから実行することを推奨します。
+
+```bash
+npm run migrate -- csv ./orders.csv \
+  --col-order-id "注文番号" \
+  --col-order-date "注文日" \
+  --col-product-name "商品名" \
+  --col-quantity "数量" \
+  --col-unit-price "単価" \
+  --col-status "発送状況"
+```
+
+まず `--dry-run` で件数と重複判定を確認してから、本番実行することを推奨します。
+
+```bash
+npm run migrate -- csv ./orders.csv --dry-run
+```
+
+### Wix eコマース REST APIから直接移行する
+
+Wix Veloのバックエンドコードはウィックス側のエディタ内でのみ動作するため、外部のNode.jsスクリプトから直接呼び出すことはできません。代わりに、Wixが公開している eコマース REST API（Orders Search）から直接取得します。
+
+```bash
+# .env に WIX_API_KEY / WIX_SITE_ID を追加
+npm run migrate -- wix-api --since 2025-03-01
+```
+
+- `WIX_API_KEY`: Wix開発者センターで発行するAPIキー（注文の読み取り権限が必要）
+- `WIX_SITE_ID`: 対象サイトのID
+
+## 重複防止・エラーハンドリング
+
+- 実行のたびにNotion側の既存 `明細ID` を全件取得し、同じ `明細ID` を持つ行はスキップします（同じCSVを2回流しても重複登録されません）。
+- Notion APIの429（レート超過）・5xxエラーは指数バックオフで最大4回まで自動リトライします。
+- 書き込みは概ね3件/秒程度になるよう間隔を空けて実行し、Notionのレート制限（平均3リクエスト/秒）を超えないようにしています。
+- CSVの必須列が空・不正な値の行は移行対象から除外し、実行後に行番号と理由を一覧表示します。
+- 移行完了後、読み込み件数・新規登録件数・重複スキップ件数・失敗件数のサマリーを表示します。失敗があった場合は終了コード1を返します。
