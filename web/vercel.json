@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/acc/sync-wix",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 21 * * *"
     }
   ]
 }
