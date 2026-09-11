@@ -1,14 +1,38 @@
 export type OrderStatus = "未発送" | "発送済" | "キャンセル" | "返金";
 
-export interface SaleRecord {
+export type Ledger = "acc" | "trackteam";
+
+/** Physical/organizational stock location. ACC owns 水上村 and 町田寮; 陸上部 is its own ledger's single location. */
+export type Location = "水上村" | "町田寮" | "陸上部";
+
+export type EventType =
+  | "入庫" // new stock registered (finished goods received)
+  | "通常販売" // normal-price sale (Wix or manual)
+  | "関係者価格販売" // insider/staff discounted sale
+  | "プレゼント" // gift, no revenue
+  | "拠点間移動" // transfer between locations within the same ledger
+  | "卸し" // wholesale to another party (ACC→陸上部, 陸上部→購買会, etc.)
+  | "棚卸調整"; // stock count correction, signed quantity
+
+/**
+ * One row in a ledger's Notion database. Every inventory or sales change —
+ * a Wix order line, a manual sale, a stock-in, a transfer, an adjustment —
+ * is one InventoryEvent, distinguished by eventType.
+ */
+export interface InventoryEvent {
   pageId: string;
-  orderId: string;
+  transactionId: string;
   lineId: string;
-  soldAt: string; // ISO date string
+  eventType: EventType;
+  occurredAt: string; // ISO date string
+  location: Location;
+  /** Only set for 拠点間移動: the location stock moved into. */
+  destinationLocation: Location | null;
   productName: string;
   quantity: number;
   unitPrice: number;
   totalAmount: number;
+  memo: string;
   status: OrderStatus;
 }
 
@@ -37,8 +61,14 @@ export interface SalesSummary {
   productRanking: ProductRankingEntry[];
 }
 
-export interface SalesListResponse {
-  records: SaleRecord[];
+export interface EventListResponse {
+  records: InventoryEvent[];
   nextCursor: string | null;
   hasMore: boolean;
+}
+
+export interface StockBalanceEntry {
+  productName: string;
+  location: Location;
+  quantity: number;
 }

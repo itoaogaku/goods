@@ -4,7 +4,8 @@ import { Command } from "commander";
 import { DEFAULT_COLUMN_MAP, parseWixOrdersCsv, type CsvColumnMap } from "./source-csv.js";
 import { fetchWixOrders } from "./source-wix-api.js";
 import { migrateOrderLines } from "./migrate.js";
-import type { OrderLine } from "./types.js";
+import { backfillAccDefaults, getDataSourceId } from "./notion.js";
+import type { Location, OrderLine } from "./types.js";
 
 const program = new Command();
 
@@ -24,6 +25,7 @@ program
   .option("--col-unit-price <name>", "単価の列名", DEFAULT_COLUMN_MAP.unitPrice)
   .option("--col-status <name>", "発送ステータスの列名", DEFAULT_COLUMN_MAP.status)
   .option("--since <date>", "この日付(YYYY-MM-DD)以降のデータのみ移行します", "2025-03-01")
+  .option("--location <name>", "在庫拠点（Wixの注文は全件この拠点から発送された扱いにします）", "水上村")
   .action(async (file: string, opts) => {
     const columnMap: CsvColumnMap = {
       orderId: opts.colOrderId,
@@ -34,7 +36,7 @@ program
       status: opts.colStatus,
     };
 
-    const { lines, invalidRows } = parseWixOrdersCsv(file, columnMap);
+    const { lines, invalidRows } = parseWixOrdersCsv(file, columnMap, opts.location as Location);
 
     if (invalidRows.length > 0) {
       console.warn(`\n[警告] ${invalidRows.length} 行を解析できずスキップしました:`);
@@ -55,6 +57,7 @@ program
   .description("Wix eコマース REST API から直接注文データを取得して移行します")
   .option("--dry-run", "Notionへの書き込みを行わず、件数のみ確認します", false)
   .option("--since <date>", "この日付(YYYY-MM-DD)以降のデータのみ移行します", "2025-03-01")
+  .option("--location <name>", "在庫拠点（Wixの注文は全件この拠点から発送された扱いにします）", "水上村")
   .action(async (opts) => {
     const apiKey = process.env.WIX_API_KEY;
     const siteId = process.env.WIX_SITE_ID;
@@ -64,8 +67,24 @@ program
       return;
     }
 
-    const lines = await fetchWixOrders({ apiKey, siteId, since: opts.since });
+    const lines = await fetchWixOrders({
+      apiKey,
+      siteId,
+      since: opts.since,
+      location: opts.location as Location,
+    });
     await runMigration(lines, opts.dryRun);
+  });
+
+program
+  .command("backfill")
+  .description(
+    "既存データベースの行に 種別=通常販売・拠点=水上村 のデフォルト値を補完します（旧バージョンで移行済みの行がある場合に使用）"
+  )
+  .action(async () => {
+    const dataSourceId = await getDataSourceId();
+    const updated = await backfillAccDefaults(dataSourceId);
+    console.log(`${updated} 件の行に 種別/拠点 のデフォルト値を設定しました`);
   });
 
 function filterSince(lines: OrderLine[], since: string): OrderLine[] {

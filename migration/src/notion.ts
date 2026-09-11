@@ -65,9 +65,11 @@ export async function createOrderLinePage(dataSourceId: string, line: OrderLine)
   await notion.pages.create({
     parent: { data_source_id: dataSourceId },
     properties: {
-      注文ID: { title: [{ text: { content: line.orderId } }] },
+      取引ID: { title: [{ text: { content: line.orderId } }] },
       明細ID: { rich_text: [{ text: { content: line.lineId } }] },
-      販売日時: { date: { start: line.soldAt } },
+      種別: { select: { name: "通常販売" } },
+      日時: { date: { start: line.soldAt } },
+      拠点: { select: { name: line.location } },
       商品名: { rich_text: [{ text: { content: line.productName } }] },
       数量: { number: line.quantity },
       単価: { number: line.unitPrice },
@@ -75,4 +77,33 @@ export async function createOrderLinePage(dataSourceId: string, line: OrderLine)
       ステータス: { select: { name: line.status } },
     },
   });
+}
+
+/**
+ * Sets 種別=通常販売 / 拠点=水上村 on any page that predates the
+ * 種別・拠点 properties (rows created by an older version of this script,
+ * before ACC's inventory model was introduced). Safe to re-run — pages
+ * that already have both set are left untouched.
+ */
+export async function backfillAccDefaults(dataSourceId: string): Promise<number> {
+  const notion = getNotionClient();
+  const rows = await collectAllDataSourceRows(notion, { data_source_id: dataSourceId });
+
+  let updated = 0;
+  for (const row of rows) {
+    if (!isFullPage(row)) continue;
+    const hasEventType = row.properties["種別"]?.type === "select" && row.properties["種別"].select;
+    const hasLocation = row.properties["拠点"]?.type === "select" && row.properties["拠点"].select;
+    if (hasEventType && hasLocation) continue;
+
+    await notion.pages.update({
+      page_id: row.id,
+      properties: {
+        ...(hasEventType ? {} : { 種別: { select: { name: "通常販売" } } }),
+        ...(hasLocation ? {} : { 拠点: { select: { name: "水上村" } } }),
+      },
+    });
+    updated += 1;
+  }
+  return updated;
 }

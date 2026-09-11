@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
-import { queryAllSales, SALES_DATA_SINCE } from "@/lib/notion";
+import { queryAllEvents, SALES_DATA_SINCE } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
+import { isLedger, SALE_EVENT_TYPES } from "@/lib/ledger";
 import type { MonthlyStat, ProductRankingEntry, SalesSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +10,22 @@ export async function OPTIONS(request: NextRequest) {
   return preflightResponse(request.headers.get("origin"));
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ ledger: string }> }
+) {
   const origin = request.headers.get("origin");
+  const { ledger } = await context.params;
+
+  if (!isLedger(ledger)) {
+    return jsonWithCors(origin, { error: "不明な台帳です" }, { status: 404 });
+  }
 
   try {
-    const records = await queryAllSales();
+    const records = await queryAllEvents(ledger, {
+      dateFrom: SALES_DATA_SINCE,
+      eventTypes: SALE_EVENT_TYPES,
+    });
 
     const monthlyMap = new Map<string, MonthlyStat>();
     const productMap = new Map<string, ProductRankingEntry>();
@@ -26,7 +38,7 @@ export async function GET(request: NextRequest) {
     let currentMonthRevenue = 0;
 
     for (const record of records) {
-      const month = record.soldAt.slice(0, 7); // "YYYY-MM"
+      const month = record.occurredAt.slice(0, 7); // "YYYY-MM"
 
       const monthEntry = monthlyMap.get(month) ?? { month, revenue: 0, quantity: 0 };
       monthEntry.revenue += record.totalAmount;

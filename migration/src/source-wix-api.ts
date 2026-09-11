@@ -1,5 +1,5 @@
 import { normalizeStatus } from "./status.js";
-import type { OrderLine } from "./types.js";
+import type { Location, OrderLine } from "./types.js";
 
 /**
  * Wix Velo backend code only runs inside the Wix site itself, so an external
@@ -36,6 +36,7 @@ export interface WixApiOptions {
   apiKey: string;
   siteId: string;
   since: string; // ISO date, inclusive
+  location: Location;
 }
 
 async function fetchOrdersPage(
@@ -86,6 +87,7 @@ export async function fetchWixOrders(options: WixApiOptions): Promise<OrderLine[
           orderId: order.number,
           lineId: `${order.number}_${index + 1}`,
           soldAt: order.createdDate,
+          location: options.location,
           productName: item.productName?.original ?? "(商品名不明)",
           quantity,
           unitPrice,

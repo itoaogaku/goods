@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse } from "csv-parse/sync";
 import { normalizeStatus } from "./status.js";
-import type { OrderLine } from "./types.js";
+import type { Location, OrderLine } from "./types.js";
 
 export interface CsvColumnMap {
   orderId: string;
@@ -49,7 +49,8 @@ function parseDate(raw: string | undefined): string | null {
 
 export function parseWixOrdersCsv(
   filePath: string,
-  columnMap: CsvColumnMap = DEFAULT_COLUMN_MAP
+  columnMap: CsvColumnMap = DEFAULT_COLUMN_MAP,
+  location: Location = "水上村"
 ): CsvParseResult {
   const raw = readFileSync(filePath, "utf-8");
   const rows: Record<string, string>[] = parse(raw, {
@@ -99,6 +100,7 @@ export function parseWixOrdersCsv(
       orderId,
       lineId: `${orderId}_${lineIndex}`,
       soldAt,
+      location,
       productName,
       quantity,
       unitPrice,
