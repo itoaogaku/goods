@@ -34,6 +34,7 @@ const STATUS_VARIANT: Record<OrderStatus, "warning" | "success" | "destructive" 
 };
 
 const EVENT_TYPE_VARIANT: Record<EventType, "success" | "warning" | "secondary" | "outline"> = {
+  発注: "outline",
   入庫: "success",
   通常販売: "outline",
   関係者価格販売: "secondary",

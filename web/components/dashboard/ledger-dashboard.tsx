@@ -5,6 +5,7 @@ import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { ProductRanking } from "@/components/dashboard/product-ranking";
 import { StockTable } from "@/components/dashboard/stock-table";
+import { PurchaseOrderPanel } from "@/components/dashboard/purchase-order-panel";
 import { InventoryForms } from "@/components/dashboard/inventory-forms";
 import { EventTable } from "@/components/dashboard/event-table";
 import { WixSyncButton } from "@/components/dashboard/wix-sync-button";
@@ -75,6 +76,7 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
       )}
 
       <StockTable ledger={ledger} refreshKey={refreshKey} />
+      <PurchaseOrderPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <InventoryForms ledger={ledger} onChanged={handleChanged} />
       <EventTable ledger={ledger} refreshKey={refreshKey} />
     </div>

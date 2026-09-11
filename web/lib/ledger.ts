@@ -1,4 +1,4 @@
-import type { EventType, Ledger, Location } from "./types";
+import type { EventType, Ledger, Location, PurchaseOrderStatus } from "./types";
 
 /**
  * Static, client-safe configuration for each ledger (Notion database).
@@ -37,6 +37,7 @@ export function isLedger(value: string): value is Ledger {
 }
 
 export const EVENT_TYPES: EventType[] = [
+  "発注",
   "入庫",
   "通常販売",
   "関係者価格販売",
@@ -51,7 +52,17 @@ export const SALE_EVENT_TYPES: EventType[] = ["通常販売", "関係者価格�
 
 /**
  * Event types selectable from the general "手入力記録" form — every sale-like
- * type plus 棚卸調整 (stock count correction). 入庫 and 拠点間移動 have their
- * own dedicated forms since they need per-location quantity inputs.
+ * type plus 棚卸調整 (stock count correction). 入庫・拠点間移動・発注 have
+ * their own dedicated forms with different fields.
  */
 export const MANUAL_ENTRY_EVENT_TYPES: EventType[] = [...SALE_EVENT_TYPES, "棚卸調整"];
+
+export const PURCHASE_ORDER_STATUSES: PurchaseOrderStatus[] = [
+  "発注済み",
+  "一部納品",
+  "納品完了",
+  "キャンセル",
+];
+
+/** 発注 rows still awaiting (full) delivery. */
+export const OPEN_PO_STATUSES: PurchaseOrderStatus[] = ["発注済み", "一部納品"];

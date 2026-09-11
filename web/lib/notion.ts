@@ -8,7 +8,16 @@ import type {
   GroupFilterOperatorArray,
   PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
-import type { EventType, InventoryEvent, Ledger, Location, OrderStatus, StockBalanceEntry } from "./types";
+import { generateLineId, generateTransactionId } from "./ids";
+import type {
+  EventType,
+  InventoryEvent,
+  Ledger,
+  Location,
+  OrderStatus,
+  PurchaseOrderStatus,
+  StockBalanceEntry,
+} from "./types";
 
 export const SALES_DATA_SINCE = process.env.SALES_DATA_SINCE ?? "2025-03-01";
 
@@ -112,6 +121,10 @@ export function pageToInventoryEvent(page: PageObjectResponse): InventoryEvent {
     totalAmount: getNumber(p["合計金額"]),
     memo: getPlainText(p["備考"]),
     status: (getSelectName(p["ステータス"]) as OrderStatus | null) ?? "発送済",
+    supplier: getPlainText(p["仕入先"]),
+    poStatus: getSelectName(p["発注ステータス"]) as PurchaseOrderStatus | null,
+    expectedDeliveryDate: getDate(p["納品予定日"]),
+    receivedQuantity: getNumber(p["受領済み数量"]),
   };
 }
 
@@ -267,14 +280,19 @@ export interface CreateEventInput {
   unitPrice?: number;
   memo?: string;
   status?: OrderStatus;
+  /** 発注 only, below. */
+  supplier?: string;
+  poStatus?: PurchaseOrderStatus;
+  expectedDeliveryDate?: string;
+  receivedQuantity?: number;
 }
 
-export async function createEvent(ledger: Ledger, event: CreateEventInput): Promise<void> {
+export async function createEvent(ledger: Ledger, event: CreateEventInput): Promise<string> {
   const notion = getNotionClient();
   const dataSourceId = await getDataSourceId(ledger);
   const unitPrice = event.unitPrice ?? 0;
 
-  await notion.pages.create({
+  const page = await notion.pages.create({
     parent: { data_source_id: dataSourceId },
     properties: {
       取引ID: { title: [{ text: { content: event.transactionId } }] },
@@ -291,12 +309,78 @@ export async function createEvent(ledger: Ledger, event: CreateEventInput): Prom
       合計金額: { number: unitPrice * event.quantity },
       備考: { rich_text: [{ text: { content: event.memo ?? "" } }] },
       ステータス: { select: { name: event.status ?? "発送済" } },
+      ...(event.supplier ? { 仕入先: { rich_text: [{ text: { content: event.supplier } }] } } : {}),
+      ...(event.poStatus ? { 発注ステータス: { select: { name: event.poStatus } } } : {}),
+      ...(event.expectedDeliveryDate
+        ? { 納品予定日: { date: { start: event.expectedDeliveryDate } } }
+        : {}),
+      ...(event.receivedQuantity !== undefined
+        ? { 受領済み数量: { number: event.receivedQuantity } }
+        : {}),
     },
   });
+  return page.id;
 }
 
 /** Fetches every 明細ID already present in a ledger, for client-side idempotency checks. */
 export async function fetchExistingLineIds(ledger: Ledger): Promise<Set<string>> {
   const events = await queryAllEvents(ledger);
   return new Set(events.map((e) => e.lineId));
+}
+
+export async function getEvent(ledger: Ledger, pageId: string): Promise<InventoryEvent | null> {
+  const notion = getNotionClient();
+  await getDataSourceId(ledger); // ensures NOTION_API_KEY / ledger env vars are validated first
+  const page = await notion.pages.retrieve({ page_id: pageId });
+  if (!isFullPage(page)) return null;
+  return pageToInventoryEvent(page);
+}
+
+export interface ReceivePurchaseOrderInput {
+  pageId: string;
+  receivedQuantity: number;
+  location: Location;
+  occurredAt: string;
+}
+
+/**
+ * Records a (possibly partial) delivery against an open 発注: bumps its
+ * 受領済み数量 / 発注ステータス, and creates the matching 入庫 event that
+ * actually adds the received quantity to stock at the given location.
+ */
+export async function receivePurchaseOrder(
+  ledger: Ledger,
+  input: ReceivePurchaseOrderInput
+): Promise<InventoryEvent> {
+  const notion = getNotionClient();
+  const po = await getEvent(ledger, input.pageId);
+  if (!po || po.eventType !== "発注") {
+    throw new Error("指定された発注が見つかりません");
+  }
+
+  const newReceived = po.receivedQuantity + input.receivedQuantity;
+  const newStatus: PurchaseOrderStatus = newReceived >= po.quantity ? "納品完了" : "一部納品";
+
+  await notion.pages.update({
+    page_id: po.pageId,
+    properties: {
+      受領済み数量: { number: newReceived },
+      発注ステータス: { select: { name: newStatus } },
+    },
+  });
+
+  await createEvent(ledger, {
+    transactionId: generateTransactionId("RECEIVE", input.occurredAt),
+    lineId: generateLineId("receive"),
+    eventType: "入庫",
+    occurredAt: input.occurredAt,
+    location: input.location,
+    productName: po.productName,
+    quantity: input.receivedQuantity,
+    unitPrice: po.unitPrice,
+    memo: `発注 ${po.transactionId} の納品`,
+    status: "発送済",
+  });
+
+  return { ...po, receivedQuantity: newReceived, poStatus: newStatus };
 }

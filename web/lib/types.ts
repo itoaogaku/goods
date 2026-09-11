@@ -6,6 +6,7 @@ export type Ledger = "acc" | "trackteam";
 export type Location = "水上村" | "町田寮" | "陸上部";
 
 export type EventType =
+  | "発注" // purchase order placed with a supplier — does NOT affect stock
   | "入庫" // new stock registered (finished goods received)
   | "通常販売" // normal-price sale (Wix or manual)
   | "関係者価格販売" // insider/staff discounted sale
@@ -14,10 +15,12 @@ export type EventType =
   | "卸し" // wholesale to another party (ACC→陸上部, 陸上部→購買会, etc.)
   | "棚卸調整"; // stock count correction, signed quantity
 
+export type PurchaseOrderStatus = "発注済み" | "一部納品" | "納品完了" | "キャンセル";
+
 /**
  * One row in a ledger's Notion database. Every inventory or sales change —
- * a Wix order line, a manual sale, a stock-in, a transfer, an adjustment —
- * is one InventoryEvent, distinguished by eventType.
+ * a Wix order line, a manual sale, a stock-in, a transfer, an adjustment,
+ * a purchase order — is one InventoryEvent, distinguished by eventType.
  */
 export interface InventoryEvent {
   pageId: string;
@@ -34,6 +37,11 @@ export interface InventoryEvent {
   totalAmount: number;
   memo: string;
   status: OrderStatus;
+  /** 発注 only, below. */
+  supplier: string;
+  poStatus: PurchaseOrderStatus | null;
+  expectedDeliveryDate: string;
+  receivedQuantity: number;
 }
 
 export interface MonthlyStat {
