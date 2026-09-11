@@ -328,6 +328,26 @@ export async function fetchExistingLineIds(ledger: Ledger): Promise<Set<string>>
   return new Set(events.map((e) => e.lineId));
 }
 
+/**
+ * Updates a single event's ステータス (未発送/発送済/キャンセル/返金). This
+ * is how shipping is tracked and confirmed — entirely inside this app, not
+ * derived from Wix, which doesn't track fulfillment.
+ */
+export async function updateEventStatus(
+  ledger: Ledger,
+  pageId: string,
+  status: OrderStatus
+): Promise<void> {
+  const notion = getNotionClient();
+  await getDataSourceId(ledger); // validates the ledger's env vars before writing
+  await notion.pages.update({
+    page_id: pageId,
+    properties: {
+      ステータス: { select: { name: status } },
+    },
+  });
+}
+
 export async function getEvent(ledger: Ledger, pageId: string): Promise<InventoryEvent | null> {
   const notion = getNotionClient();
   await getDataSourceId(ledger); // ensures NOTION_API_KEY / ledger env vars are validated first

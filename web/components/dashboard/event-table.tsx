@@ -20,18 +20,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatusSelect } from "@/components/dashboard/status-select";
 import { formatJPY, formatNumber } from "@/lib/utils";
 import { EVENT_TYPES, LEDGER_CONFIG } from "@/lib/ledger";
 import type { EventListResponse, EventType, InventoryEvent, Ledger, OrderStatus } from "@/lib/types";
 
 const STATUS_OPTIONS: OrderStatus[] = ["未発送", "発送済", "キャンセル", "返金"];
-
-const STATUS_VARIANT: Record<OrderStatus, "warning" | "success" | "destructive" | "secondary"> = {
-  未発送: "warning",
-  発送済: "success",
-  キャンセル: "destructive",
-  返金: "secondary",
-};
 
 const EVENT_TYPE_VARIANT: Record<EventType, "success" | "warning" | "secondary" | "outline"> = {
   発注: "outline",
@@ -47,9 +41,10 @@ const EVENT_TYPE_VARIANT: Record<EventType, "success" | "warning" | "secondary" 
 interface EventTableProps {
   ledger: Ledger;
   refreshKey: number;
+  onChanged?: () => void;
 }
 
-export function EventTable({ ledger, refreshKey }: EventTableProps) {
+export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
   const config = LEDGER_CONFIG[ledger];
 
   const [search, setSearch] = useState("");
@@ -221,7 +216,12 @@ export function EventTable({ ledger, refreshKey }: EventTableProps) {
                     {formatJPY(record.totalAmount)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[record.status]}>{record.status}</Badge>
+                    <StatusSelect
+                      ledger={ledger}
+                      pageId={record.pageId}
+                      status={record.status}
+                      onUpdated={onChanged}
+                    />
                   </TableCell>
                   <TableCell className="max-w-32 truncate text-muted-foreground">{record.memo}</TableCell>
                 </TableRow>

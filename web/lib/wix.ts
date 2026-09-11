@@ -11,21 +11,21 @@ import type { Location, OrderStatus } from "./types";
 
 const WIX_ORDERS_SEARCH_URL = "https://www.wixapis.com/ecom/v1/orders/search";
 
-const STATUS_MAP: Record<string, OrderStatus> = {
-  FULFILLED: "発送済",
-  "FULLY FULFILLED": "発送済",
-  NOT_FULFILLED: "未発送",
-  UNFULFILLED: "未発送",
-  PARTIALLY_FULFILLED: "未発送",
+// Fulfillment (発送/未発送) isn't tracked in Wix at all — it's managed
+// entirely in this app instead (see the 発送管理 panel), so every synced
+// order always starts as 未発送 regardless of what Wix's fulfillmentStatus
+// says. paymentStatus is still a real Wix-side fact worth carrying over,
+// since a canceled/refunded order shouldn't sit in the "to ship" queue.
+const PAYMENT_STATUS_MAP: Record<string, OrderStatus> = {
   CANCELED: "キャンセル",
   CANCELLED: "キャンセル",
   REFUNDED: "返金",
   PARTIALLY_REFUNDED: "返金",
 };
 
-function normalizeStatus(raw: string | undefined | null): OrderStatus {
-  if (!raw) return "未発送";
-  return STATUS_MAP[raw.trim().toUpperCase()] ?? "未発送";
+function normalizeStatus(paymentStatus: string | undefined | null): OrderStatus {
+  if (!paymentStatus) return "未発送";
+  return PAYMENT_STATUS_MAP[paymentStatus.trim().toUpperCase()] ?? "未発送";
 }
 
 interface WixOrderLineItem {
@@ -37,7 +37,6 @@ interface WixOrderLineItem {
 interface WixOrder {
   number: string;
   createdDate: string;
-  fulfillmentStatus?: string;
   paymentStatus?: string;
   lineItems?: WixOrderLineItem[];
 }
@@ -93,7 +92,7 @@ export async function fetchWixOrderLines(options: WixSyncOptions): Promise<Creat
     const page = await fetchOrdersPage(options, cursor);
 
     for (const order of page.orders) {
-      const status = normalizeStatus(order.fulfillmentStatus ?? order.paymentStatus);
+      const status = normalizeStatus(order.paymentStatus);
       (order.lineItems ?? []).forEach((item, index) => {
         const quantity = item.quantity ?? 0;
         const unitPrice = Number(item.price?.amount ?? 0);

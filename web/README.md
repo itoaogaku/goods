@@ -32,6 +32,14 @@ Wix注文データは、初回の過去分一括移行のみ `../migration` のC
 
 「現在庫」は、各台帳の**全期間**のイベントからこのルールで積み上げて計算します（月別売上などのKPIは `SALES_DATA_SINCE` 以降のみを対象にしますが、在庫残高は開始日に関わらず全履歴を対象とします）。
 
+### 発送管理（ステータス）
+
+`ステータス`（未発送/発送済/キャンセル/返金）は**Wixからは取り込まず、このアプリ内だけで管理**します。Wix経由で自動同期された注文は常に `未発送` として登録され、実際に発送したらこのアプリ上でステータスを更新します。
+
+- 各台帳のダッシュボード上部に「**発送管理**」パネルがあり、未発送の注文だけが一覧表示されます。行ごとのステータスをその場でプルダウンから変更でき、変更は即座にNotionへ反映されます
+- 下部の「取引・在庫履歴」テーブルでも、どの行のステータスもその場で変更できます（過去分の修正など）
+- KPIの「未対応注文数」もこのステータスに連動します
+
 ## Notionデータベースのスキーマ（両台帳共通）
 
 | プロパティ名 | 型 | 説明 |
@@ -69,7 +77,7 @@ Wix注文データは、初回の過去分一括移行のみ `../migration` のC
 
 ACC台帳（水上村）には、Wixの新しい注文が自動的に反映されます。
 
-- **定期同期（Vercel Cron）**: `vercel.json` の設定により、`/api/acc/sync-wix` が既定で **30分ごと**に自動実行され、Wix eコマース REST API（Orders Search）から `WIX_SYNC_SINCE`（未設定時は `SALES_DATA_SINCE`）以降の注文を取得し、Notion未登録の明細だけを `種別=通常販売` / `拠点=水上村` として追加します。重複登録防止のロジックは移行CLIと同じ（`明細ID`の一意性チェック）なので、何度実行しても安全です。
+- **定期同期（Vercel Cron）**: `vercel.json` の設定により、`/api/acc/sync-wix` が既定で **30分ごと**に自動実行され、Wix eコマース REST API（Orders Search）から `WIX_SYNC_SINCE`（未設定時は `SALES_DATA_SINCE`）以降の注文を取得し、Notion未登録の明細だけを `種別=通常販売` / `拠点=水上村` / `ステータス=未発送` として追加します（発送管理はWixではなくこのアプリ内で行うため、Wixの発送状況は見ません。キャンセル・返金のみWixの決済ステータスから反映されます）。重複登録防止のロジックは移行CLIと同じ（`明細ID`の一意性チェック）なので、何度実行しても安全です。
 - **手動同期**: ACCタブ右上の「今すぐWixと同期」ボタンから、いつでも即座に同期を実行できます。
 - Vercelのプラン（Hobby/Pro）によってCronの実行頻度に制限がある場合があります。デプロイ後、Vercelダッシュボードの Settings → Cron Jobs で実行間隔が反映されているか確認し、必要に応じて `vercel.json` の `schedule` を調整してください。
 - 初回の過去分（例: 2025年3月〜稼働開始まで）は、この自動同期だけでは取りこぼしなく遡れない可能性があるため、`../migration` のCLI（`npm run migrate -- wix-api` または `csv`）で一度バックフィルしておくことを推奨します。以降の新規注文はこの自動同期が引き継ぎます。
@@ -96,6 +104,8 @@ ACC台帳（水上村）には、Wixの新しい注文が自動的に反映さ�
 - `app/api/[ledger]/purchase-order/route.ts` — 発注の登録（POST）
 - `app/api/[ledger]/purchase-order/receive/route.ts` — 発注に対する納品登録（POST、在庫にも自動反映）
 - `app/api/[ledger]/purchase-orders/route.ts` — 発注一覧の取得（GET、ページネーションなし全件）
+- `app/api/[ledger]/pending-shipments/route.ts` — 未発送一覧の取得（GET、ページネーションなし全件）
+- `app/api/[ledger]/event/status/route.ts` — 取引のステータス変更（POST）
 - `app/api/acc/sync-wix/route.ts` — Wix注文の同期（GET: Cron起動用 / POST: 手動同期ボタン用、どちらも同じ処理）
 - `lib/wix.ts` / `lib/wix-sync.ts` — Wix Orders REST APIクライアントと同期ロジック
 - `vercel.json` — Wix同期を定期実行するCron設定

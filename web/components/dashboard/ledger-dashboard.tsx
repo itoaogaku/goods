@@ -5,6 +5,7 @@ import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { ProductRanking } from "@/components/dashboard/product-ranking";
 import { StockTable } from "@/components/dashboard/stock-table";
+import { PendingShipmentsPanel } from "@/components/dashboard/pending-shipments-panel";
 import { PurchaseOrderPanel } from "@/components/dashboard/purchase-order-panel";
 import { InventoryForms } from "@/components/dashboard/inventory-forms";
 import { EventTable } from "@/components/dashboard/event-table";
@@ -75,10 +76,11 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
         !error && <p className="text-sm text-muted-foreground">読み込み中…</p>
       )}
 
+      <PendingShipmentsPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <StockTable ledger={ledger} refreshKey={refreshKey} />
       <PurchaseOrderPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <InventoryForms ledger={ledger} onChanged={handleChanged} />
-      <EventTable ledger={ledger} refreshKey={refreshKey} />
+      <EventTable ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
     </div>
   );
 }
