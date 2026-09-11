@@ -2,7 +2,7 @@
 
 **アスリートキャリアセンター**（水上村・町田寮の在庫）と、**陸上部**（アスリートキャリアセンターから仕入れて販売・購買会卸し・プレゼントする在庫）を、別々のNotionデータベース・別々のタブで管理するNext.js製ダッシュボードです。API（Route Handlers）とフロントエンドが1つのNext.jsアプリにまとまっており、Vercelへそのままデプロイできます。
 
-Wix注文データのNotionへの初回移行は `../migration` のCLIツールを使用してください。それ以外の在庫登録・拠点間移動・手入力販売はこのダッシュボード上のフォームから行います。
+Wix注文データは、初回の過去分一括移行のみ `../migration` のCLIツールを使用し、それ以降は**このアプリが自動的に**新しい注文をNotionへ取り込み続けます（後述「Wix注文の自動取り込み」）。在庫登録・拠点間移動・手入力販売（町田寮・関係者価格・プレゼント・卸し・棚卸調整）はダッシュボード上のフォームから行います。
 
 ## 在庫・販売管理の仕組み
 
@@ -60,6 +60,26 @@ Wix注文データのNotionへの初回移行は `../migration` のCLIツール�
 2. 同じNotion Integrationを「コネクト」する
 3. データベースIDを `TRACK_TEAM_NOTION_DATABASE_ID` に設定
 
+## Wix注文の自動取り込み
+
+ACC台帳（水上村）には、Wixの新しい注文が自動的に反映されます。
+
+- **定期同期（Vercel Cron）**: `vercel.json` の設定により、`/api/acc/sync-wix` が既定で **30分ごと**に自動実行され、Wix eコマース REST API（Orders Search）から `WIX_SYNC_SINCE`（未設定時は `SALES_DATA_SINCE`）以降の注文を取得し、Notion未登録の明細だけを `種別=通常販売` / `拠点=水上村` として追加します。重複登録防止のロジックは移行CLIと同じ（`明細ID`の一意性チェック）なので、何度実行しても安全です。
+- **手動同期**: ACCタブ右上の「今すぐWixと同期」ボタンから、いつでも即座に同期を実行できます。
+- Vercelのプラン（Hobby/Pro）によってCronの実行頻度に制限がある場合があります。デプロイ後、Vercelダッシュボードの Settings → Cron Jobs で実行間隔が反映されているか確認し、必要に応じて `vercel.json` の `schedule` を調整してください。
+- 初回の過去分（例: 2025年3月〜稼働開始まで）は、この自動同期だけでは取りこぼしなく遡れない可能性があるため、`../migration` のCLI（`npm run migrate -- wix-api` または `csv`）で一度バックフィルしておくことを推奨します。以降の新規注文はこの自動同期が引き継ぎます。
+- 本当のリアルタイム性が必要な場合はWixのWebhook（注文作成イベントのpush通知）を使う方式もありますが、今回は署名検証の仕様を確認できなかったため未実装です。必要であれば追って対応します。
+- このアプリ全体に認証機能はまだ無く、`/api/acc/sync-wix` もURLを知っていれば誰でも呼び出せます（他の登録系APIも同様）。同期処理自体は明細IDで重複排除されるため誤って何度呼んでもデータは壊れませんが、社内利用に閉じたい場合はVercelのDeployment Protectionなどの導入を検討してください。
+
+### 環境変数（Wix同期用）
+
+| 変数名 | 必須 | 説明 |
+| --- | --- | --- |
+| `WIX_API_KEY` | ✅ | Wix開発者センターで発行するAPIキー（注文の読み取り権限が必要。`../migration`と共用可） |
+| `WIX_SITE_ID` | ✅ | 対象サイトのID |
+| `WIX_SYNC_LOCATION` | - | Wix注文を記録する拠点（デフォルト `水上村`） |
+| `WIX_SYNC_SINCE` | - | この日付以降の注文のみ同期（デフォルト `SALES_DATA_SINCE`） |
+
 ## 構成
 
 - `app/api/[ledger]/summary/route.ts` — 月別売上集計・商品別ランキング・KPI（`ledger` は `acc` または `trackteam`）
@@ -68,6 +88,9 @@ Wix注文データのNotionへの初回移行は `../migration` のCLIツール�
 - `app/api/[ledger]/stock-in/route.ts` — 在庫登録（POST）
 - `app/api/[ledger]/transfer/route.ts` — 拠点間移動の登録（POST、ACC台帳のみ）
 - `app/api/[ledger]/manual-entry/route.ts` — 手入力販売・プレゼント・卸し・棚卸調整の登録（POST）
+- `app/api/acc/sync-wix/route.ts` — Wix注文の同期（GET: Cron起動用 / POST: 手動同期ボタン用、どちらも同じ処理）
+- `lib/wix.ts` / `lib/wix-sync.ts` — Wix Orders REST APIクライアントと同期ロジック
+- `vercel.json` — Wix同期を定期実行するCron設定
 - `app/page.tsx` / `app/track-team/page.tsx` — 各台帳のダッシュボード画面
 - `components/dashboard/ledger-dashboard.tsx` — KPIカード・売上推移グラフ・商品別ランキング・現在庫・登録フォーム・取引履歴を組み合わせた画面本体（両台帳で共用）
 - `lib/notion.ts` — Notion APIクライアントとクエリ・集計・在庫計算ロジック
@@ -95,6 +118,8 @@ npm run dev
 | `TRACK_TEAM_NOTION_DATA_SOURCE_ID` | - | 指定すると陸上部台帳のデータベースID解決をスキップします |
 | `SALES_DATA_SINCE` | - | 売上集計の開始日（デフォルト `2025-03-01`）。在庫残高の計算には影響しません |
 | `ALLOWED_ORIGIN` | - | APIへのブラウザアクセスを許可するオリジン（カンマ区切りで複数指定可）。未設定時は `*` |
+| `WIX_API_KEY` / `WIX_SITE_ID` | ✅（自動同期を使う場合） | Wix注文の自動取り込みに使用。詳細は「Wix注文の自動取り込み」を参照 |
+| `WIX_SYNC_LOCATION` / `WIX_SYNC_SINCE` | - | 同上 |
 
 APIキー・データベースIDはサーバーサイド（Route Handlers内）でのみ使用され、クライアントに送信されることはありません。
 

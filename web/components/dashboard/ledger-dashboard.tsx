@@ -7,6 +7,7 @@ import { ProductRanking } from "@/components/dashboard/product-ranking";
 import { StockTable } from "@/components/dashboard/stock-table";
 import { InventoryForms } from "@/components/dashboard/inventory-forms";
 import { EventTable } from "@/components/dashboard/event-table";
+import { WixSyncButton } from "@/components/dashboard/wix-sync-button";
 import { LEDGER_CONFIG } from "@/lib/ledger";
 import type { Ledger, SalesSummary } from "@/lib/types";
 
@@ -42,9 +43,15 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="text-xl font-semibold">{config.label}</h1>
-        <p className="text-sm text-muted-foreground">2025年3月以降の販売実績・現在庫（Notion連携）</p>
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">{config.label}</h1>
+          <p className="text-sm text-muted-foreground">
+            2025年3月以降の販売実績・現在庫（Notion連携）
+            {ledger === "acc" && "。Wixの注文は30分ごとに自動取り込みされます"}
+          </p>
+        </div>
+        {ledger === "acc" && <WixSyncButton onSynced={handleChanged} />}
       </header>
 
       {error && (

@@ -13,9 +13,10 @@
 
 ```
 Wix Stores（水上村からの注文）
-   │  CSVエクスポート or eコマースREST API
+   │  初回のみ: CSVエクスポート or eコマースREST API
+   │  以降: web/ が30分ごとに自動取り込み（app/api/acc/sync-wix, Vercel Cron）
    ▼
-migration/ (CLI)  ──▶  Notion: ACCデータベース ◀── web/ の在庫登録・拠点間移動・
+migration/ (CLI, 初回のみ) ─▶ Notion: ACCデータベース ◀── web/ の在庫登録・拠点間移動・
                             │                        手入力販売フォーム（水上村/町田寮）
                             │
                             │  （ACC→陸上部の卸しは双方で手入力）
