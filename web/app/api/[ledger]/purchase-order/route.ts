@@ -14,11 +14,9 @@ export async function OPTIONS(request: NextRequest) {
 interface PurchaseOrderBody {
   productName?: string;
   occurredAt?: string;
-  supplier?: string;
   quantity?: number;
   unitPrice?: number;
   location?: Location;
-  expectedDeliveryDate?: string;
   memo?: string;
 }
 
@@ -38,14 +36,12 @@ export async function POST(
 
   const productName = body?.productName?.trim();
   const occurredAt = body?.occurredAt?.trim();
-  const supplier = body?.supplier?.trim();
   const quantity = body?.quantity;
   const unitPrice = body?.unitPrice ?? 0;
   const location = body?.location ?? (config.locations.length === 1 ? config.locations[0] : undefined);
 
   if (!productName) return jsonWithCors(origin, { error: "商品名は必須です" }, { status: 400 });
   if (!occurredAt) return jsonWithCors(origin, { error: "発注日は必須です" }, { status: 400 });
-  if (!supplier) return jsonWithCors(origin, { error: "仕入先は必須です" }, { status: 400 });
   if (!quantity || !Number.isFinite(quantity) || quantity <= 0) {
     return jsonWithCors(origin, { error: "発注数量は1以上を指定してください" }, { status: 400 });
   }
@@ -66,10 +62,8 @@ export async function POST(
       productName,
       quantity,
       unitPrice,
-      supplier,
       poStatus: "発注済み",
       receivedQuantity: 0,
-      expectedDeliveryDate: body?.expectedDeliveryDate,
       memo: body?.memo ?? "",
       status: "発送済",
     });

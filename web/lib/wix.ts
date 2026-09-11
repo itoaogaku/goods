@@ -11,11 +11,20 @@ import type { Location, OrderStatus } from "./types";
 
 const WIX_ORDERS_SEARCH_URL = "https://www.wixapis.com/ecom/v1/orders/search";
 
-// Fulfillment (発送/未発送) isn't tracked in Wix at all — it's managed
-// entirely in this app instead (see the 発送管理 panel), so every synced
-// order always starts as 未発送 regardless of what Wix's fulfillmentStatus
-// says. paymentStatus is still a real Wix-side fact worth carrying over,
-// since a canceled/refunded order shouldn't sit in the "to ship" queue.
+// 発送済み/未発送 is read straight from Wix's own fulfillmentStatus, so
+// marking an order fulfilled in Wix is reflected here on the next sync
+// (this module's fetchWixOrderLines is re-fetched and diffed against
+// Notion on every run — see lib/wix-sync.ts). paymentStatus is checked
+// too, since cancellation/refund is a fact fulfillmentStatus alone won't
+// carry, and should take priority over a raw fulfillment claim.
+const FULFILLMENT_STATUS_MAP: Record<string, OrderStatus> = {
+  FULFILLED: "発送済",
+  "FULLY FULFILLED": "発送済",
+  NOT_FULFILLED: "未発送",
+  UNFULFILLED: "未発送",
+  PARTIALLY_FULFILLED: "未発送",
+};
+
 const PAYMENT_STATUS_MAP: Record<string, OrderStatus> = {
   CANCELED: "キャンセル",
   CANCELLED: "キャンセル",
@@ -23,9 +32,17 @@ const PAYMENT_STATUS_MAP: Record<string, OrderStatus> = {
   PARTIALLY_REFUNDED: "返金",
 };
 
-function normalizeStatus(paymentStatus: string | undefined | null): OrderStatus {
-  if (!paymentStatus) return "未発送";
-  return PAYMENT_STATUS_MAP[paymentStatus.trim().toUpperCase()] ?? "未発送";
+function normalizeStatus(
+  fulfillmentStatus: string | undefined | null,
+  paymentStatus: string | undefined | null
+): OrderStatus {
+  const fromPayment = paymentStatus ? PAYMENT_STATUS_MAP[paymentStatus.trim().toUpperCase()] : undefined;
+  if (fromPayment) return fromPayment;
+
+  const fromFulfillment = fulfillmentStatus
+    ? FULFILLMENT_STATUS_MAP[fulfillmentStatus.trim().toUpperCase()]
+    : undefined;
+  return fromFulfillment ?? "未発送";
 }
 
 interface WixOrderLineItem {
@@ -37,6 +54,7 @@ interface WixOrderLineItem {
 interface WixOrder {
   number: string;
   createdDate: string;
+  fulfillmentStatus?: string;
   paymentStatus?: string;
   lineItems?: WixOrderLineItem[];
 }
@@ -92,7 +110,7 @@ export async function fetchWixOrderLines(options: WixSyncOptions): Promise<Creat
     const page = await fetchOrdersPage(options, cursor);
 
     for (const order of page.orders) {
-      const status = normalizeStatus(order.paymentStatus);
+      const status = normalizeStatus(order.fulfillmentStatus, order.paymentStatus);
       (order.lineItems ?? []).forEach((item, index) => {
         const quantity = item.quantity ?? 0;
         const unitPrice = Number(item.price?.amount ?? 0);

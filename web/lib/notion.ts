@@ -121,9 +121,7 @@ export function pageToInventoryEvent(page: PageObjectResponse): InventoryEvent {
     totalAmount: getNumber(p["合計金額"]),
     memo: getPlainText(p["備考"]),
     status: (getSelectName(p["ステータス"]) as OrderStatus | null) ?? "発送済",
-    supplier: getPlainText(p["仕入先"]),
     poStatus: getSelectName(p["発注ステータス"]) as PurchaseOrderStatus | null,
-    expectedDeliveryDate: getDate(p["納品予定日"]),
     receivedQuantity: getNumber(p["受領済み数量"]),
   };
 }
@@ -281,9 +279,7 @@ export interface CreateEventInput {
   memo?: string;
   status?: OrderStatus;
   /** 発注 only, below. */
-  supplier?: string;
   poStatus?: PurchaseOrderStatus;
-  expectedDeliveryDate?: string;
   receivedQuantity?: number;
 }
 
@@ -309,11 +305,7 @@ export async function createEvent(ledger: Ledger, event: CreateEventInput): Prom
       合計金額: { number: unitPrice * event.quantity },
       備考: { rich_text: [{ text: { content: event.memo ?? "" } }] },
       ステータス: { select: { name: event.status ?? "発送済" } },
-      ...(event.supplier ? { 仕入先: { rich_text: [{ text: { content: event.supplier } }] } } : {}),
       ...(event.poStatus ? { 発注ステータス: { select: { name: event.poStatus } } } : {}),
-      ...(event.expectedDeliveryDate
-        ? { 納品予定日: { date: { start: event.expectedDeliveryDate } } }
-        : {}),
       ...(event.receivedQuantity !== undefined
         ? { 受領済み数量: { number: event.receivedQuantity } }
         : {}),
@@ -322,10 +314,10 @@ export async function createEvent(ledger: Ledger, event: CreateEventInput): Prom
   return page.id;
 }
 
-/** Fetches every 明細ID already present in a ledger, for client-side idempotency checks. */
-export async function fetchExistingLineIds(ledger: Ledger): Promise<Set<string>> {
+/** Fetches every event already present in a ledger, indexed by 明細ID (for idempotency checks and diffing). */
+export async function fetchExistingLineEvents(ledger: Ledger): Promise<Map<string, InventoryEvent>> {
   const events = await queryAllEvents(ledger);
-  return new Set(events.map((e) => e.lineId));
+  return new Map(events.map((e) => [e.lineId, e]));
 }
 
 /**

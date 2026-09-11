@@ -20,9 +20,7 @@ export function PurchaseOrderForm({ ledger, onSuccess }: PurchaseOrderFormProps)
   const config = LEDGER_CONFIG[ledger];
 
   const [productName, setProductName] = useState("");
-  const [supplier, setSupplier] = useState("");
   const [occurredAt, setOccurredAt] = useState(today());
-  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
   const [location, setLocation] = useState<Location>(config.locations[0]);
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
@@ -41,9 +39,7 @@ export function PurchaseOrderForm({ ledger, onSuccess }: PurchaseOrderFormProps)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productName,
-          supplier,
           occurredAt,
-          expectedDeliveryDate: expectedDeliveryDate || undefined,
           location,
           quantity: Number(quantity),
           unitPrice: Number(unitPrice) || 0,
@@ -55,8 +51,6 @@ export function PurchaseOrderForm({ ledger, onSuccess }: PurchaseOrderFormProps)
 
       setMessage({ type: "success", text: "発注を登録しました" });
       setProductName("");
-      setSupplier("");
-      setExpectedDeliveryDate("");
       setQuantity("");
       setUnitPrice("");
       setMemo("");
@@ -71,7 +65,7 @@ export function PurchaseOrderForm({ ledger, onSuccess }: PurchaseOrderFormProps)
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        仕入先に発注した時点で記録します。この時点では在庫は増えません。「発注一覧」から納品を登録すると在庫（入庫）に反映されます。
+        発注した時点で記録します。この時点では在庫は増えません。「発注一覧」から納品を登録すると在庫（入庫）に反映されます。
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
@@ -79,22 +73,8 @@ export function PurchaseOrderForm({ ledger, onSuccess }: PurchaseOrderFormProps)
           <Input value={productName} onChange={(e) => setProductName(e.target.value)} required />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          仕入先
-          <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} required />
-        </label>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm">
           発注日
           <Input type="date" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} required />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          納品予定日（任意）
-          <Input
-            type="date"
-            value={expectedDeliveryDate}
-            onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-          />
         </label>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -125,7 +105,7 @@ export function PurchaseOrderForm({ ledger, onSuccess }: PurchaseOrderFormProps)
         )}
       </div>
       <label className="flex flex-col gap-1 text-sm">
-        備考（任意）
+        備考（任意、仕入先など）
         <Input value={memo} onChange={(e) => setMemo(e.target.value)} />
       </label>
       {message && (

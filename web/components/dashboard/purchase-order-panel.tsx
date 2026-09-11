@@ -78,11 +78,10 @@ export function PurchaseOrderPanel({ ledger, refreshKey, onChanged }: PurchaseOr
               <TableRow>
                 <TableHead>発注日</TableHead>
                 <TableHead>商品名</TableHead>
-                <TableHead>仕入先</TableHead>
                 <TableHead className="text-right">発注数量</TableHead>
                 <TableHead className="text-right">受領済み</TableHead>
                 <TableHead className="text-right">仕入単価</TableHead>
-                <TableHead>納品予定日</TableHead>
+                <TableHead>備考</TableHead>
                 <TableHead>ステータス</TableHead>
                 <TableHead />
               </TableRow>
@@ -96,15 +95,12 @@ export function PurchaseOrderPanel({ ledger, refreshKey, onChanged }: PurchaseOr
                     <TableRow>
                       <TableCell className="whitespace-nowrap">{po.occurredAt.slice(0, 10)}</TableCell>
                       <TableCell className="max-w-40 truncate">{po.productName}</TableCell>
-                      <TableCell className="max-w-32 truncate">{po.supplier}</TableCell>
                       <TableCell className="text-right tabular-nums">{formatNumber(po.quantity)}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatNumber(po.receivedQuantity)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatJPY(po.unitPrice)}</TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {po.expectedDeliveryDate ? po.expectedDeliveryDate.slice(0, 10) : "-"}
-                      </TableCell>
+                      <TableCell className="max-w-32 truncate text-muted-foreground">{po.memo}</TableCell>
                       <TableCell>
                         {po.poStatus && <Badge variant={PO_STATUS_VARIANT[po.poStatus]}>{po.poStatus}</Badge>}
                       </TableCell>
@@ -125,7 +121,7 @@ export function PurchaseOrderPanel({ ledger, refreshKey, onChanged }: PurchaseOr
                     </TableRow>
                     {receivingPageId === po.pageId && (
                       <TableRow>
-                        <TableCell colSpan={9} className="bg-muted/30">
+                        <TableCell colSpan={8} className="bg-muted/30">
                           <ReceiveForm
                             ledger={ledger}
                             pageId={po.pageId}
@@ -145,7 +141,7 @@ export function PurchaseOrderPanel({ ledger, refreshKey, onChanged }: PurchaseOr
               })}
               {orders && visible.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                     {showAll ? "発注データがありません" : "納品待ちの発注はありません"}
                   </TableCell>
                 </TableRow>

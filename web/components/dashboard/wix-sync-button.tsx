@@ -20,7 +20,7 @@ export function WixSyncButton({ onSynced }: WixSyncButtonProps) {
       const data: WixSyncResult & { error?: string } = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
-      const parts = [`新規${data.created}件`, `重複${data.skipped}件`];
+      const parts = [`新規${data.created}件`, `ステータス更新${data.statusUpdated}件`, `変更なし${data.skipped}件`];
       if (data.errors.length > 0) parts.push(`失敗${data.errors.length}件`);
       if (data.truncated) parts.push("未処理分あり・次回同期で継続");
       setMessage({ type: "success", text: `Wixと同期しました（${parts.join("・")}）` });

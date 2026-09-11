@@ -6,7 +6,7 @@ export type Ledger = "acc" | "trackteam";
 export type Location = "水上村" | "町田寮" | "陸上部";
 
 export type EventType =
-  | "発注" // purchase order placed with a supplier — does NOT affect stock
+  | "発注" // purchase order placed — does NOT affect stock until received
   | "入庫" // new stock registered (finished goods received)
   | "通常販売" // normal-price sale (Wix or manual)
   | "関係者価格販売" // insider/staff discounted sale
@@ -38,9 +38,7 @@ export interface InventoryEvent {
   memo: string;
   status: OrderStatus;
   /** 発注 only, below. */
-  supplier: string;
   poStatus: PurchaseOrderStatus | null;
-  expectedDeliveryDate: string;
   receivedQuantity: number;
 }
 
