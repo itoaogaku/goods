@@ -101,41 +101,54 @@ async function fetchOrdersPage(
   return (await response.json()) as WixOrdersSearchResponse;
 }
 
-/** Fetches every order line since options.since, shaped ready to hand to lib/notion's createEvent. */
-export async function fetchWixOrderLines(options: WixSyncOptions): Promise<CreateEventInput[]> {
+function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOptions): CreateEventInput[] {
   const lines: CreateEventInput[] = [];
+
+  for (const order of page.orders) {
+    const status = normalizeStatus(order.fulfillmentStatus, order.paymentStatus);
+    (order.lineItems ?? []).forEach((item, index) => {
+      const quantity = item.quantity ?? 0;
+      const unitPrice = Number(item.price?.amount ?? 0);
+      if (quantity <= 0) return;
+
+      lines.push({
+        transactionId: order.number,
+        // Must match the {orderId}_{lineIndex} format the migration CLI
+        // (migration/src/source-wix-api.ts, source-csv.ts) uses, so a
+        // historically-migrated order line and this sync's view of the
+        // same line dedup against each other instead of double-counting.
+        lineId: `${order.number}_${index + 1}`,
+        eventType: "通常販売",
+        occurredAt: order.createdDate,
+        location: options.location,
+        productName: item.productName?.original ?? "(商品名不明)",
+        quantity,
+        unitPrice,
+        status,
+      });
+    });
+  }
+
+  return lines;
+}
+
+/**
+ * Yields order lines one Wix API page at a time (up to 100 orders' worth
+ * per page), instead of fetching every page since `since` up front. A
+ * years-long order history can be thousands of orders — fetching it all
+ * before doing anything else risks the whole sync running past the
+ * serverless function's time limit before a single Notion write happens.
+ * The caller (lib/wix-sync.ts) can act on and time-box each page as it
+ * arrives, and stop asking for more once its own deadline is close.
+ */
+export async function* iterateWixOrderLines(
+  options: WixSyncOptions
+): AsyncGenerator<CreateEventInput[]> {
   let cursor: string | undefined;
 
   do {
     const page = await fetchOrdersPage(options, cursor);
-
-    for (const order of page.orders) {
-      const status = normalizeStatus(order.fulfillmentStatus, order.paymentStatus);
-      (order.lineItems ?? []).forEach((item, index) => {
-        const quantity = item.quantity ?? 0;
-        const unitPrice = Number(item.price?.amount ?? 0);
-        if (quantity <= 0) return;
-
-        lines.push({
-          transactionId: order.number,
-          // Must match the {orderId}_{lineIndex} format the migration CLI
-          // (migration/src/source-wix-api.ts, source-csv.ts) uses, so a
-          // historically-migrated order line and this sync's view of the
-          // same line dedup against each other instead of double-counting.
-          lineId: `${order.number}_${index + 1}`,
-          eventType: "通常販売",
-          occurredAt: order.createdDate,
-          location: options.location,
-          productName: item.productName?.original ?? "(商品名不明)",
-          quantity,
-          unitPrice,
-          status,
-        });
-      });
-    }
-
+    yield toCreateEventInputs(page, options);
     cursor = page.metadata?.cursors?.next;
   } while (cursor);
-
-  return lines;
 }

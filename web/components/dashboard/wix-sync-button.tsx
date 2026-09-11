@@ -17,8 +17,17 @@ export function WixSyncButton({ onSynced }: WixSyncButtonProps) {
     setMessage(null);
     try {
       const res = await fetch("/api/acc/sync-wix", { method: "POST" });
-      const data: WixSyncResult & { error?: string } = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      const raw = await res.text();
+      let data: (WixSyncResult & { error?: string }) | null = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        // Not JSON — e.g. Vercel's own timeout/error page rather than our
+        // route's response. Fall through to the generic message below.
+      }
+      if (!res.ok || !data) {
+        throw new Error(data?.error ?? `同期に失敗しました（HTTP ${res.status}）。時間をおいて再度お試しください`);
+      }
 
       const parts = [`新規${data.created}件`, `ステータス更新${data.statusUpdated}件`, `変更なし${data.skipped}件`];
       if (data.errors.length > 0) parts.push(`失敗${data.errors.length}件`);
