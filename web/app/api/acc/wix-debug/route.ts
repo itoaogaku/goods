@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
       orders?: Array<{ number?: string; createdDate?: string }>;
       metadata?: unknown;
       pagingMetadata?: unknown;
+      message?: string;
+      details?: unknown;
       [key: string]: unknown;
     } | null;
 
@@ -92,6 +94,9 @@ export async function GET(request: NextRequest) {
       page1LastOrderNumber: page1?.orders?.at(-1)?.number ?? null,
       page1Metadata: page1?.metadata ?? null,
       page1PagingMetadata: page1?.pagingMetadata ?? null,
+      page1ErrorMessage: page1?.message ?? null,
+      page1ErrorDetails: page1?.details ?? null,
+      requestBodySent: page1Body,
       cursorFound: cursor ?? null,
       page2Summary,
       rawTextIfParseFailed: page1Json ? null : page1Text.slice(0, 2000),
