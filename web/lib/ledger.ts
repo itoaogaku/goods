@@ -45,6 +45,7 @@ export const EVENT_TYPES: EventType[] = [
   "拠点間移動",
   "卸し",
   "棚卸調整",
+  "送料",
 ];
 
 /** Event types that represent goods leaving inventory via a sale-like transaction. */

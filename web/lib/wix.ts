@@ -57,6 +57,7 @@ interface WixOrder {
   fulfillmentStatus?: string;
   paymentStatus?: string;
   lineItems?: WixOrderLineItem[];
+  priceSummary?: { shipping?: { amount?: string } };
 }
 
 interface WixOrdersSearchResponse {
@@ -139,6 +140,23 @@ function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOpti
         status,
       });
     });
+
+    const shippingAmount = Number(order.priceSummary?.shipping?.amount ?? 0);
+    if (shippingAmount > 0) {
+      lines.push({
+        transactionId: order.number,
+        // A dedicated suffix (not a numeric index) so it can never collide
+        // with a real line item's `${order.number}_${index + 1}` id.
+        lineId: `${order.number}_shipping`,
+        eventType: "送料",
+        occurredAt: order.createdDate,
+        location: options.location,
+        productName: "送料",
+        quantity: 1,
+        unitPrice: shippingAmount,
+        status,
+      });
+    }
   }
 
   return lines;

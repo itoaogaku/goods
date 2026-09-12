@@ -12,10 +12,11 @@ export function KpiCards({ kpi }: KpiCardsProps) {
     { label: "累計売上（2025年3月〜）", value: formatJPY(kpi.cumulativeRevenue) },
     { label: "総販売個数", value: `${formatNumber(kpi.totalQuantity)} 個` },
     { label: "未対応注文数", value: `${formatNumber(kpi.pendingCount)} 件` },
+    { label: "送料合計（2025年3月〜）", value: formatJPY(kpi.shippingRevenue) },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardHeader>

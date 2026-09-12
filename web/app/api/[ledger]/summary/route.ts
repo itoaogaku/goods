@@ -25,9 +25,13 @@ export async function GET(
   }
 
   try {
+    // 送料 rows (one per Wix order with a shipping fee) are fetched in the
+    // same query as the sale types so this doesn't cost a second full scan,
+    // but are tracked as their own KPI instead of folding into product
+    // revenue/ranking/quantity — see the branch below.
     const records = await queryAllEvents(ledger, {
       dateFrom: SALES_DATA_SINCE,
-      eventTypes: SALE_EVENT_TYPES,
+      eventTypes: [...SALE_EVENT_TYPES, "送料"],
     });
 
     const monthlyMap = new Map<string, MonthlyStat>();
@@ -35,12 +39,18 @@ export async function GET(
     let cumulativeRevenue = 0;
     let totalQuantity = 0;
     let pendingCount = 0;
+    let shippingRevenue = 0;
 
     const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     let currentMonthRevenue = 0;
 
     for (const record of records) {
+      if (record.eventType === "送料") {
+        shippingRevenue += record.totalAmount;
+        continue;
+      }
+
       const month = record.occurredAt.slice(0, 7); // "YYYY-MM"
 
       const monthEntry = monthlyMap.get(month) ?? { month, revenue: 0, quantity: 0 };
@@ -71,6 +81,7 @@ export async function GET(
         cumulativeRevenue,
         totalQuantity,
         pendingCount,
+        shippingRevenue,
       },
       monthlyStats: [...monthlyMap.values()].sort((a, b) => a.month.localeCompare(b.month)),
       productRanking: [...productMap.values()].sort((a, b) => b.quantity - a.quantity),

@@ -13,7 +13,8 @@ export type EventType =
   | "プレゼント" // gift, no revenue
   | "拠点間移動" // transfer between locations within the same ledger
   | "卸し" // wholesale to another party (ACC→陸上部, 陸上部→購買会, etc.)
-  | "棚卸調整"; // stock count correction, signed quantity
+  | "棚卸調整" // stock count correction, signed quantity
+  | "送料"; // shipping fee collected on an order (Wix sync only) — no stock impact
 
 export type PurchaseOrderStatus = "発注済み" | "一部納品" | "納品完了" | "キャンセル";
 
@@ -62,6 +63,8 @@ export interface SalesSummary {
     cumulativeRevenue: number;
     totalQuantity: number;
     pendingCount: number;
+    /** Cumulative 送料 (shipping fee) collected since rangeStart, tracked separately from product revenue. */
+    shippingRevenue: number;
   };
   monthlyStats: MonthlyStat[];
   productRanking: ProductRankingEntry[];
