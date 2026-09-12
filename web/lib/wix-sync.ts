@@ -11,6 +11,18 @@ import type { Location } from "./types";
 // so stopping mid-page loses nothing.
 const TIME_BUDGET_MS = 45_000;
 
+// Notion's documented rate limit is an average of ~3 requests/second.
+// Writing dozens of rows back to back with no gap risks 429s — and a
+// burst of 429s tends to spill over onto whatever request the dashboard
+// happens to make right after (e.g. the summary/pending-shipments
+// refetch triggered by this sync finishing) — so pace writes out instead
+// of firing them as fast as possible.
+const WRITE_INTERVAL_MS = 350;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export interface WixSyncResult {
   checked: number;
   created: number;
@@ -65,6 +77,7 @@ export async function syncWixOrders(): Promise<WixSyncResult> {
         } catch (error) {
           errors.push(`${line.lineId}: ${error instanceof Error ? error.message : String(error)}`);
         }
+        await sleep(WRITE_INTERVAL_MS);
         continue;
       }
 
@@ -79,6 +92,7 @@ export async function syncWixOrders(): Promise<WixSyncResult> {
       } catch (error) {
         errors.push(`${line.lineId}: ${error instanceof Error ? error.message : String(error)}`);
       }
+      await sleep(WRITE_INTERVAL_MS);
     }
   }
 

@@ -34,6 +34,32 @@ const DATA_SOURCE_ID_ENV_VAR: Record<Ledger, string> = {
 let client: Client | null = null;
 const dataSourceIdCache = new Map<Ledger, string>();
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Notion's documented rate limit is an average of ~3 requests/second;
+ * bursts (like the Wix sync writing dozens of rows back to back) can get
+ * 429'd, and a 429 hitting one call tends to mean unrelated calls right
+ * after it are at risk too. Retries with backoff on 429/5xx, matching
+ * migration/src/migrate.ts's approach for the same underlying API.
+ */
+async function withNotionRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (error) {
+      attempt += 1;
+      const status = (error as { status?: number }).status;
+      const retryable = status === 429 || (typeof status === "number" && status >= 500);
+      if (!retryable || attempt > maxRetries) throw error;
+      await sleep(2 ** attempt * 400);
+    }
+  }
+}
+
 export function getNotionClient(): Client {
   if (client) return client;
   const apiKey = process.env.NOTION_API_KEY;
@@ -68,7 +94,7 @@ export async function getDataSourceId(ledger: Ledger): Promise<string> {
   }
 
   const notion = getNotionClient();
-  const database = await notion.databases.retrieve({ database_id: databaseId });
+  const database = await withNotionRetry(() => notion.databases.retrieve({ database_id: databaseId }));
   if (!isFullDatabase(database)) {
     throw new Error(`Database ${databaseId} could not be fully retrieved`);
   }
@@ -186,10 +212,12 @@ export async function queryAllEvents(
   const dataSourceId = await getDataSourceId(ledger);
   const filter = buildFilter(options);
 
-  const rows = await collectAllDataSourceRows(notion, {
-    data_source_id: dataSourceId,
-    filter,
-  });
+  const rows = await withNotionRetry(() =>
+    collectAllDataSourceRows(notion, {
+      data_source_id: dataSourceId,
+      filter,
+    })
+  );
 
   return rows
     .filter(isFullPage)
@@ -209,13 +237,15 @@ export async function queryEventsPage(
   const dataSourceId = await getDataSourceId(ledger);
   const filter = buildFilter(options);
 
-  const response = await notion.dataSources.query({
-    data_source_id: dataSourceId,
-    filter,
-    sorts: [{ property: "日時", direction: "descending" }],
-    page_size: options.pageSize ?? 25,
-    start_cursor: options.cursor,
-  });
+  const response = await withNotionRetry(() =>
+    notion.dataSources.query({
+      data_source_id: dataSourceId,
+      filter,
+      sorts: [{ property: "日時", direction: "descending" }],
+      page_size: options.pageSize ?? 25,
+      start_cursor: options.cursor,
+    })
+  );
 
   const records = response.results.filter(isFullPage).map(pageToInventoryEvent);
 
@@ -288,7 +318,8 @@ export async function createEvent(ledger: Ledger, event: CreateEventInput): Prom
   const dataSourceId = await getDataSourceId(ledger);
   const unitPrice = event.unitPrice ?? 0;
 
-  const page = await notion.pages.create({
+  const page = await withNotionRetry(() =>
+    notion.pages.create({
     parent: { data_source_id: dataSourceId },
     properties: {
       取引ID: { title: [{ text: { content: event.transactionId } }] },
@@ -310,7 +341,8 @@ export async function createEvent(ledger: Ledger, event: CreateEventInput): Prom
         ? { 受領済み数量: { number: event.receivedQuantity } }
         : {}),
     },
-  });
+    })
+  );
   return page.id;
 }
 
@@ -332,18 +364,20 @@ export async function updateEventStatus(
 ): Promise<void> {
   const notion = getNotionClient();
   await getDataSourceId(ledger); // validates the ledger's env vars before writing
-  await notion.pages.update({
-    page_id: pageId,
-    properties: {
-      ステータス: { select: { name: status } },
-    },
-  });
+  await withNotionRetry(() =>
+    notion.pages.update({
+      page_id: pageId,
+      properties: {
+        ステータス: { select: { name: status } },
+      },
+    })
+  );
 }
 
 export async function getEvent(ledger: Ledger, pageId: string): Promise<InventoryEvent | null> {
   const notion = getNotionClient();
   await getDataSourceId(ledger); // ensures NOTION_API_KEY / ledger env vars are validated first
-  const page = await notion.pages.retrieve({ page_id: pageId });
+  const page = await withNotionRetry(() => notion.pages.retrieve({ page_id: pageId }));
   if (!isFullPage(page)) return null;
   return pageToInventoryEvent(page);
 }
@@ -373,13 +407,15 @@ export async function receivePurchaseOrder(
   const newReceived = po.receivedQuantity + input.receivedQuantity;
   const newStatus: PurchaseOrderStatus = newReceived >= po.quantity ? "納品完了" : "一部納品";
 
-  await notion.pages.update({
-    page_id: po.pageId,
-    properties: {
-      受領済み数量: { number: newReceived },
-      発注ステータス: { select: { name: newStatus } },
-    },
-  });
+  await withNotionRetry(() =>
+    notion.pages.update({
+      page_id: po.pageId,
+      properties: {
+        受領済み数量: { number: newReceived },
+        発注ステータス: { select: { name: newStatus } },
+      },
+    })
+  );
 
   await createEvent(ledger, {
     transactionId: generateTransactionId("RECEIVE", input.occurredAt),
