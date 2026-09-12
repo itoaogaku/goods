@@ -432,3 +432,54 @@ export async function receivePurchaseOrder(
 
   return { ...po, receivedQuantity: newReceived, poStatus: newStatus };
 }
+
+export interface DuplicateLineGroup {
+  lineId: string;
+  /** Page IDs sharing this 明細ID, oldest first. */
+  pageIds: string[];
+  productName: string;
+}
+
+/**
+ * Finds every 明細ID that has more than one page in the ledger (each such
+ * group should have exactly one page — 明細ID exists specifically to make
+ * sync idempotent). Doesn't change anything; pair with archiveDuplicateLines
+ * to actually clean them up.
+ */
+export async function findDuplicateLineGroups(ledger: Ledger): Promise<DuplicateLineGroup[]> {
+  const notion = getNotionClient();
+  const dataSourceId = await getDataSourceId(ledger);
+
+  const rows = await withNotionRetry(() =>
+    collectAllDataSourceRows(notion, { data_source_id: dataSourceId })
+  );
+
+  const byLineId = new Map<string, PageObjectResponse[]>();
+  for (const row of rows) {
+    if (!isFullPage(row)) continue;
+    const lineId = getPlainText(row.properties["明細ID"]);
+    if (!lineId) continue; // nothing to dedupe against without a key
+    const group = byLineId.get(lineId) ?? [];
+    group.push(row);
+    byLineId.set(lineId, group);
+  }
+
+  const duplicates: DuplicateLineGroup[] = [];
+  for (const [lineId, pages] of byLineId) {
+    if (pages.length <= 1) continue;
+    const sorted = [...pages].sort((a, b) => a.created_time.localeCompare(b.created_time));
+    duplicates.push({
+      lineId,
+      pageIds: sorted.map((p) => p.id),
+      productName: getPlainText(sorted[0].properties["商品名"]),
+    });
+  }
+
+  return duplicates.sort((a, b) => a.lineId.localeCompare(b.lineId));
+}
+
+/** Archives (moves to Notion's trash — recoverable, not a permanent delete) a single page. */
+export async function archivePage(pageId: string): Promise<void> {
+  const notion = getNotionClient();
+  await withNotionRetry(() => notion.pages.update({ page_id: pageId, archived: true }));
+}

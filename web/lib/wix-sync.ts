@@ -72,8 +72,29 @@ export async function syncWixOrders(): Promise<WixSyncResult> {
 
       if (!existing) {
         try {
-          await createEvent("acc", line);
+          const pageId = await createEvent("acc", line);
           created += 1;
+          // Reflect this write in the in-memory dedup map immediately —
+          // otherwise the same lineId appearing again later in this same
+          // run (overlapping Wix pages, etc.) would look "new" against
+          // the stale start-of-run snapshot and get created a second time.
+          existingEvents.set(line.lineId, {
+            pageId,
+            transactionId: line.transactionId,
+            lineId: line.lineId,
+            eventType: line.eventType,
+            occurredAt: line.occurredAt,
+            location: line.location,
+            destinationLocation: line.destinationLocation ?? null,
+            productName: line.productName,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice ?? 0,
+            totalAmount: (line.unitPrice ?? 0) * line.quantity,
+            memo: line.memo ?? "",
+            status: line.status ?? "未発送",
+            poStatus: line.poStatus ?? null,
+            receivedQuantity: line.receivedQuantity ?? 0,
+          });
         } catch (error) {
           errors.push(`${line.lineId}: ${error instanceof Error ? error.message : String(error)}`);
         }

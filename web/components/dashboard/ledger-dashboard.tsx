@@ -10,6 +10,7 @@ import { PurchaseOrderPanel } from "@/components/dashboard/purchase-order-panel"
 import { InventoryForms } from "@/components/dashboard/inventory-forms";
 import { EventTable } from "@/components/dashboard/event-table";
 import { WixSyncButton } from "@/components/dashboard/wix-sync-button";
+import { DedupePanel } from "@/components/dashboard/dedupe-panel";
 import { LEDGER_CONFIG } from "@/lib/ledger";
 import type { Ledger, SalesSummary } from "@/lib/types";
 
@@ -81,6 +82,7 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
       <PurchaseOrderPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <InventoryForms ledger={ledger} onChanged={handleChanged} />
       <EventTable ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
+      <DedupePanel ledger={ledger} onChanged={handleChanged} />
     </div>
   );
 }

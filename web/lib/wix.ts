@@ -141,13 +141,39 @@ function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOpti
  * The caller (lib/wix-sync.ts) can act on and time-box each page as it
  * arrives, and stop asking for more once its own deadline is close.
  */
+// Hard circuit breaker against a pagination bug (ours or Wix's) looping
+// forever: at 100 orders/page this is 100,000 orders, far beyond any
+// plausible order history, so hitting it always means something's wrong
+// rather than "there's just a lot of real data".
+const MAX_PAGES = 1000;
+
 export async function* iterateWixOrderLines(
   options: WixSyncOptions
 ): AsyncGenerator<CreateEventInput[]> {
   let cursor: string | undefined;
+  let previousFirstOrderNumber: string | undefined;
+  let pageCount = 0;
 
   do {
+    pageCount += 1;
+    if (pageCount > MAX_PAGES) {
+      throw new Error(
+        `Wix注文の取得が${MAX_PAGES}ページを超えたため中断しました（ページネーションが正しく進んでいない可能性があります）`
+      );
+    }
+
     const page = await fetchOrdersPage(options, cursor);
+
+    // Defensive check: if this page's content is identical to the last
+    // one's (same first order), pagination isn't actually advancing —
+    // stop here instead of reprocessing (and re-creating) the same
+    // orders indefinitely.
+    const firstOrderNumber = page.orders[0]?.number;
+    if (firstOrderNumber && firstOrderNumber === previousFirstOrderNumber) {
+      break;
+    }
+    previousFirstOrderNumber = firstOrderNumber;
+
     yield toCreateEventInputs(page, options);
     cursor = page.metadata?.cursors?.next;
   } while (cursor);

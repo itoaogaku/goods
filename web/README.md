@@ -94,6 +94,12 @@ ACC台帳（水上村）には、Wixの新しい注文が自動的に反映さ�
 | `WIX_SYNC_LOCATION` | - | Wix注文を記録する拠点（デフォルト `水上村`） |
 | `WIX_SYNC_SINCE` | - | この日付以降の注文のみ同期（デフォルト `SALES_DATA_SINCE`） |
 
+### 重複データのチェック（メンテナンス）
+
+各台帳のダッシュボード最下部に「重複データのチェック」パネルがあります。同じ`明細ID`のページが複数存在していないかを確認し、あれば一番古いものだけを残して残りをNotionの**ゴミ箱に移動**（完全削除ではなく、Notion側でいつでも復元可能）できます。
+
+過去に同期処理の不具合で明細が複数回登録されてしまった場合の復旧用です（原因は修正済みで、今後の同期では発生しません）。データ量が多いと1回の実行では全件を処理しきれないことがあるため、「残り◯グループ」と表示された場合はもう一度実行してください。
+
 ## 構成
 
 - `app/api/[ledger]/summary/route.ts` — 月別売上集計・商品別ランキング・KPI（`ledger` は `acc` または `trackteam`）
@@ -108,6 +114,8 @@ ACC台帳（水上村）には、Wixの新しい注文が自動的に反映さ�
 - `app/api/[ledger]/pending-shipments/route.ts` — 未発送一覧の取得（GET、ページネーションなし全件）
 - `app/api/[ledger]/event/status/route.ts` — 取引のステータス変更（POST）
 - `app/api/acc/sync-wix/route.ts` — Wix注文の同期（GET: Cron起動用 / POST: 手動同期ボタン用、どちらも同じ処理）
+- `app/api/[ledger]/dedupe/route.ts` — 重複明細の確認（GET）・アーカイブ（POST）
+- `lib/dedupe.ts` — 重複検出・アーカイブのロジック
 - `lib/wix.ts` / `lib/wix-sync.ts` — Wix Orders REST APIクライアントと同期ロジック
 - `vercel.json` — Wix同期を定期実行するCron設定
 - `app/page.tsx` / `app/track-team/page.tsx` — 各台帳のダッシュボード画面
