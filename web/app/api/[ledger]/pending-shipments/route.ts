@@ -34,6 +34,13 @@ export async function GET(
     return jsonWithCors(origin, { records });
   } catch (error) {
     console.error("Failed to fetch pending shipments", error);
-    return jsonWithCors(origin, { error: "未発送一覧の取得に失敗しました" }, { status: 500 });
+    return jsonWithCors(
+      origin,
+      {
+        error: "未発送一覧の取得に失敗しました",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 }

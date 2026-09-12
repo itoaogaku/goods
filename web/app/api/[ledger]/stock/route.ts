@@ -28,6 +28,13 @@ export async function GET(
     return jsonWithCors(origin, { balances });
   } catch (error) {
     console.error("Failed to compute stock balances", error);
-    return jsonWithCors(origin, { error: "在庫状況の取得に失敗しました" }, { status: 500 });
+    return jsonWithCors(
+      origin,
+      {
+        error: "在庫状況の取得に失敗しました",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 }

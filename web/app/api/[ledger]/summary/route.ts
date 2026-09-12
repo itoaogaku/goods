@@ -81,7 +81,10 @@ export async function GET(
     console.error("Failed to build sales summary", error);
     return jsonWithCors(
       origin,
-      { error: "売上サマリーの取得に失敗しました" },
+      {
+        error: "売上サマリーの取得に失敗しました",
+        detail: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

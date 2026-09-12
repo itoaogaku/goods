@@ -30,6 +30,13 @@ export async function GET(
     return jsonWithCors(origin, { records: records.reverse() });
   } catch (error) {
     console.error("Failed to fetch purchase orders", error);
-    return jsonWithCors(origin, { error: "発注一覧の取得に失敗しました" }, { status: 500 });
+    return jsonWithCors(
+      origin,
+      {
+        error: "発注一覧の取得に失敗しました",
+        detail: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 }
+    );
   }
 }
