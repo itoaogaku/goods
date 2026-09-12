@@ -25,9 +25,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Wix's createdDate filter rejects a bare date ("2025-03-01") with
+    // INVALID_QUERY_FILTER — it needs a full ISO 8601 dateTime (see lib/wix.ts).
+    const sinceDateTime = new Date(since).toISOString();
+
     const page1Body = {
       search: {
-        filter: { createdDate: { $gte: since } },
+        filter: { createdDate: { $gte: sinceDateTime } },
         sort: [{ fieldName: "createdDate", order: "ASC" }],
         cursorPaging: { limit: 5 },
       },

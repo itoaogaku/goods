@@ -83,9 +83,13 @@ async function fetchOrdersPage(
   // cursor passed. That's what made every "next page" request quietly
   // re-run page 1 and produced the massive duplicate counts seen in
   // production — nothing to do with the pagination loop logic itself.
+  // Wix's createdDate filter rejects a bare date ("2025-03-01") with
+  // INVALID_QUERY_FILTER — it needs a full ISO 8601 dateTime.
+  const sinceDateTime = new Date(options.since).toISOString();
+
   const body = {
     search: {
-      filter: { createdDate: { $gte: options.since } },
+      filter: { createdDate: { $gte: sinceDateTime } },
       sort: [{ fieldName: "createdDate", order: "ASC" }],
       cursorPaging: cursor ? { cursor, limit: 100 } : { limit: 100 },
     },
