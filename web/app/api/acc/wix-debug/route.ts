@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     if (cursor) {
       const page2Body = {
         search: {
-          filter: { createdDate: { $gte: since } },
+          filter: { createdDate: { $gte: sinceDateTime } },
           sort: [{ fieldName: "createdDate", order: "ASC" }],
           cursorPaging: { cursor, limit: 5 },
         },
@@ -87,6 +87,9 @@ export async function GET(request: NextRequest) {
         rawKeys: page2Json ? Object.keys(page2Json) : null,
         metadata: page2Json?.metadata ?? null,
         pagingMetadata: page2Json?.pagingMetadata ?? null,
+        errorMessage: page2Json?.message ?? null,
+        errorDetails: page2Json?.details ?? null,
+        requestBodySent: page2Body,
       };
     }
 
