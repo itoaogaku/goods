@@ -4,6 +4,9 @@ import { jsonWithCors, preflightResponse } from "@/lib/cors";
 import { isLedger } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
+// A growing ledger can take a while to fully page through — give this
+// route the same headroom as the Wix sync instead of the platform default.
+export const maxDuration = 60;
 
 export async function OPTIONS(request: NextRequest) {
   return preflightResponse(request.headers.get("origin"));

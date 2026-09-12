@@ -5,6 +5,9 @@ import { isLedger, SALE_EVENT_TYPES } from "@/lib/ledger";
 import type { MonthlyStat, ProductRankingEntry, SalesSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+// A growing ledger can take a while to fully page through — give this
+// route the same headroom as the Wix sync instead of the platform default.
+export const maxDuration = 60;
 
 export async function OPTIONS(request: NextRequest) {
   return preflightResponse(request.headers.get("origin"));
