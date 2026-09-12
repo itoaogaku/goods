@@ -75,16 +75,20 @@ async function fetchOrdersPage(
   options: WixSyncOptions,
   cursor?: string
 ): Promise<WixOrdersSearchResponse> {
-  // Always send the same filter/sort, cursor or not. Wix's Orders Search
-  // (like most cursor-paginated Wix APIs) appears to silently ignore a
-  // cursor sent without the original query, which made every "next page"
-  // request quietly re-run page 1 instead of advancing — the actual cause
-  // of the massive duplicate counts seen in production, not a looping bug
-  // in the pagination logic itself.
+  // Per @wix/auto_sdk_ecom_orders's SearchOrdersRequest type, the whole
+  // query must be nested under a top-level "search" object — filter/sort/
+  // cursorPaging at the request's top level (what this used to send) are
+  // silently ignored by Wix, which just falls back to its own default
+  // paging (a fixed page of ~25, always starting over), regardless of any
+  // cursor passed. That's what made every "next page" request quietly
+  // re-run page 1 and produced the massive duplicate counts seen in
+  // production — nothing to do with the pagination loop logic itself.
   const body = {
-    filter: { createdDate: { $gte: options.since } },
-    sort: [{ fieldName: "createdDate", order: "ASC" }],
-    cursorPaging: cursor ? { cursor, limit: 100 } : { limit: 100 },
+    search: {
+      filter: { createdDate: { $gte: options.since } },
+      sort: [{ fieldName: "createdDate", order: "ASC" }],
+      cursorPaging: cursor ? { cursor, limit: 100 } : { limit: 100 },
+    },
   };
 
   const response = await fetch(WIX_ORDERS_SEARCH_URL, {

@@ -26,9 +26,11 @@ export async function GET(request: NextRequest) {
 
   try {
     const page1Body = {
-      filter: { createdDate: { $gte: since } },
-      sort: [{ fieldName: "createdDate", order: "ASC" }],
-      cursorPaging: { limit: 5 },
+      search: {
+        filter: { createdDate: { $gte: since } },
+        sort: [{ fieldName: "createdDate", order: "ASC" }],
+        cursorPaging: { limit: 5 },
+      },
     };
 
     const page1Res = await fetch("https://www.wixapis.com/ecom/v1/orders/search", {
@@ -60,9 +62,11 @@ export async function GET(request: NextRequest) {
 
     if (cursor) {
       const page2Body = {
-        filter: { createdDate: { $gte: since } },
-        sort: [{ fieldName: "createdDate", order: "ASC" }],
-        cursorPaging: { cursor, limit: 5 },
+        search: {
+          filter: { createdDate: { $gte: since } },
+          sort: [{ fieldName: "createdDate", order: "ASC" }],
+          cursorPaging: { cursor, limit: 5 },
+        },
       };
       const page2Res = await fetch("https://www.wixapis.com/ecom/v1/orders/search", {
         method: "POST",
