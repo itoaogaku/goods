@@ -1,0 +1,104 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatJPY } from "@/lib/utils";
+import type { InventoryEvent, Ledger } from "@/lib/types";
+
+interface ExpensePanelProps {
+  ledger: Ledger;
+  refreshKey: number;
+}
+
+// The 在庫登録 form's 仕入れ金額 and the 経費登録 tab both write 種別=経費,
+// sharing the transactionId prefix of whichever route created them
+// (see /api/[ledger]/stock-in and /api/[ledger]/expense) — used here only
+// to label a row, not to change how it's counted.
+function isProcurement(transactionId: string): boolean {
+  return transactionId.startsWith("STOCK-");
+}
+
+export function ExpensePanel({ ledger, refreshKey }: ExpensePanelProps) {
+  const [records, setRecords] = useState<InventoryEvent[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/${ledger}/expenses`);
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.detail ?? body.error ?? `HTTP ${res.status}`);
+        setRecords(body.records);
+        setTotal(body.total);
+        setError(null);
+      } catch (err) {
+        console.error(err);
+        setError(err instanceof Error ? err.message : "経費一覧の取得に失敗しました");
+      }
+    }
+    void load();
+  }, [ledger, refreshKey]);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+        <CardTitle className="text-base font-semibold text-foreground">
+          経費一覧（{records ? records.length : "…"} 件）
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          合計 <span className="font-semibold text-foreground">{formatJPY(total)}</span>
+        </p>
+      </CardHeader>
+      <CardContent>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <div className="overflow-x-auto rounded-md border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>日時</TableHead>
+                <TableHead>区分</TableHead>
+                <TableHead>内容</TableHead>
+                <TableHead className="text-right">金額</TableHead>
+                <TableHead>備考</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(records ?? []).map((record) => (
+                <TableRow key={record.pageId}>
+                  <TableCell className="whitespace-nowrap">{record.occurredAt.slice(0, 10)}</TableCell>
+                  <TableCell>
+                    <Badge variant={isProcurement(record.transactionId) ? "success" : "secondary"}>
+                      {isProcurement(record.transactionId) ? "仕入れ" : "その他"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="max-w-48 truncate">{record.productName}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
+                    {formatJPY(record.totalAmount)}
+                  </TableCell>
+                  <TableCell className="max-w-48 truncate text-muted-foreground">{record.memo}</TableCell>
+                </TableRow>
+              ))}
+              {records && records.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    経費の記録はまだありません
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
