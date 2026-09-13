@@ -45,7 +45,7 @@ function sleep(ms: number): Promise<void> {
  * after it are at risk too. Retries with backoff on 429/5xx, matching
  * migration/src/migrate.ts's approach for the same underlying API.
  */
-async function withNotionRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
+export async function withNotionRetry<T>(fn: () => Promise<T>, maxRetries = 4): Promise<T> {
   let attempt = 0;
   while (true) {
     try {

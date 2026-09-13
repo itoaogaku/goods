@@ -10,7 +10,10 @@ const LEDGER_HREF: Record<string, string> = {
   trackteam: "/track-team",
 };
 
-const EXTRA_TABS = [{ href: "/customers", label: "顧客別集計" }];
+const EXTRA_TABS = [
+  { href: "/customers", label: "顧客別集計" },
+  { href: "/price-list", label: "料金表一覧" },
+];
 
 export function NavTabs() {
   const pathname = usePathname();
