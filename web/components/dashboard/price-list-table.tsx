@@ -61,7 +61,7 @@ export function PriceListTable() {
 
   async function handlePriceChange(
     pageId: string,
-    field: "insiderPrice" | "wholesalePrice",
+    field: "costPrice" | "insiderPrice" | "wholesalePrice",
     rawValue: string
   ) {
     const value = rawValue === "" ? null : Number(rawValue);
@@ -79,6 +79,7 @@ export function PriceListTable() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pageId,
+          costPrice: product.costPrice,
           insiderPrice: product.insiderPrice,
           wholesalePrice: product.wholesalePrice,
         }),
@@ -102,7 +103,7 @@ export function PriceListTable() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          商品名と定価はWixの商品登録から自動で反映されます。関係者価格・陸上部卸値はこの画面で入力してください（入力欄から離れると自動保存されます）。
+          商品名と定価はWixの商品登録から自動で反映されます。原価・関係者価格・陸上部卸値はこの画面で入力してください（入力欄から離れると自動保存されます）。
         </p>
 
         {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
@@ -115,6 +116,7 @@ export function PriceListTable() {
                 <TableRow>
                   <TableHead>商品名</TableHead>
                   <TableHead className="text-right">定価</TableHead>
+                  <TableHead className="text-right">原価</TableHead>
                   <TableHead className="text-right">関係者価格</TableHead>
                   <TableHead className="text-right">陸上部卸値</TableHead>
                 </TableRow>
@@ -124,6 +126,16 @@ export function PriceListTable() {
                   <TableRow key={product.pageId}>
                     <TableCell className="max-w-64 truncate">{product.productName}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatJPY(product.listPrice)}</TableCell>
+                    <TableCell className="text-right">
+                      <Input
+                        type="number"
+                        className="ml-auto w-28 text-right"
+                        value={product.costPrice ?? ""}
+                        disabled={savingId === product.pageId}
+                        onChange={(e) => handlePriceChange(product.pageId, "costPrice", e.target.value)}
+                        onBlur={() => handlePriceBlur(product.pageId)}
+                      />
+                    </TableCell>
                     <TableCell className="text-right">
                       <Input
                         type="number"
@@ -148,7 +160,7 @@ export function PriceListTable() {
                 ))}
                 {products.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                       商品がありません。「今すぐWixと同期」を押してください。
                     </TableCell>
                   </TableRow>

@@ -58,6 +58,7 @@ export async function syncWixProducts(): Promise<ProductSyncResult> {
             wixProductId: item.wixProductId,
             productName: item.name,
             listPrice: item.listPrice,
+            costPrice: null,
             insiderPrice: null,
             wholesalePrice: null,
           });

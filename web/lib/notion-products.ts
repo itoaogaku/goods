@@ -68,6 +68,7 @@ function pageToProductPriceEntry(page: PageObjectResponse): ProductPriceEntry {
     wixProductId: getPlainText(p["WixプロダクトID"]),
     productName: getPlainText(p["商品名"]),
     listPrice: getNumber(p["定価"]),
+    costPrice: getNullableNumber(p["原価"]),
     insiderPrice: getNullableNumber(p["関係者価格"]),
     wholesalePrice: getNullableNumber(p["陸上部卸値"]),
   };
@@ -133,16 +134,17 @@ export async function updateProductFromWix(
   );
 }
 
-/** Manual edit from the 料金表一覧 UI — 関係者価格 and/or 陸上部卸値 only. */
+/** Manual edit from the 料金表一覧 UI — 原価・関係者価格・陸上部卸値 only, whichever are provided. */
 export async function updateProductPrices(
   pageId: string,
-  fields: { insiderPrice?: number | null; wholesalePrice?: number | null }
+  fields: { costPrice?: number | null; insiderPrice?: number | null; wholesalePrice?: number | null }
 ): Promise<void> {
   const notion = getNotionClient();
   await withNotionRetry(() =>
     notion.pages.update({
       page_id: pageId,
       properties: {
+        ...(fields.costPrice !== undefined ? { 原価: { number: fields.costPrice } } : {}),
         ...(fields.insiderPrice !== undefined ? { 関係者価格: { number: fields.insiderPrice } } : {}),
         ...(fields.wholesalePrice !== undefined ? { 陸上部卸値: { number: fields.wholesalePrice } } : {}),
       },

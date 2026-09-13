@@ -10,6 +10,7 @@ export async function OPTIONS(request: NextRequest) {
 
 interface UpdateBody {
   pageId?: string;
+  costPrice?: number | null;
   insiderPrice?: number | null;
   wholesalePrice?: number | null;
 }
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await updateProductPrices(pageId, {
+      costPrice: body?.costPrice,
       insiderPrice: body?.insiderPrice,
       wholesalePrice: body?.wholesalePrice,
     });
