@@ -378,6 +378,33 @@ export async function updateEventStatus(
   );
 }
 
+/**
+ * Updates ステータス and/or 顧客名 on an already-synced line in one write.
+ * Used by the Wix sync to both (a) keep status current as Wix's own
+ * fulfillment/payment status changes, and (b) backfill 顧客名 on lines that
+ * were created before customer-name tracking existed (fields left
+ * undefined here are simply not touched).
+ */
+export async function updateSyncedEvent(
+  ledger: Ledger,
+  pageId: string,
+  fields: { status?: OrderStatus; customerName?: string }
+): Promise<void> {
+  const notion = getNotionClient();
+  await getDataSourceId(ledger); // validates the ledger's env vars before writing
+  await withNotionRetry(() =>
+    notion.pages.update({
+      page_id: pageId,
+      properties: {
+        ...(fields.status ? { ステータス: { select: { name: fields.status } } } : {}),
+        ...(fields.customerName !== undefined
+          ? { 顧客名: { rich_text: [{ text: { content: fields.customerName } }] } }
+          : {}),
+      },
+    })
+  );
+}
+
 export async function getEvent(ledger: Ledger, pageId: string): Promise<InventoryEvent | null> {
   const notion = getNotionClient();
   await getDataSourceId(ledger); // ensures NOTION_API_KEY / ledger env vars are validated first

@@ -1,4 +1,4 @@
-import { createEvent, fetchExistingLineEvents, SALES_DATA_SINCE, updateEventStatus } from "./notion";
+import { createEvent, fetchExistingLineEvents, SALES_DATA_SINCE, updateSyncedEvent } from "./notion";
 import { iterateWixOrderLines } from "./wix";
 import type { Location } from "./types";
 
@@ -27,6 +27,8 @@ export interface WixSyncResult {
   checked: number;
   created: number;
   statusUpdated: number;
+  /** Lines created before 顧客名 tracking existed, backfilled from Wix. */
+  nameBackfilled: number;
   skipped: number;
   truncated: boolean;
   errors: string[];
@@ -38,7 +40,9 @@ export interface WixSyncResult {
  * straight from Wix's fulfillmentStatus (see lib/wix.ts) — updates the
  * ステータス of already-synced lines whenever Wix's current status differs
  * from what's in Notion (e.g. an order got marked fulfilled in Wix after
- * it first synced). Stops once TIME_BUDGET_MS has elapsed, however far
+ * it first synced). Also backfills 顧客名 on lines that were created
+ * before that field existed (existing.customerName empty but Wix has a
+ * name for the order). Stops once TIME_BUDGET_MS has elapsed, however far
  * through Wix's order history that leaves it; run again to continue.
  */
 export async function syncWixOrders(): Promise<WixSyncResult> {
@@ -56,6 +60,7 @@ export async function syncWixOrders(): Promise<WixSyncResult> {
   let checked = 0;
   let created = 0;
   let statusUpdated = 0;
+  let nameBackfilled = 0;
   let skipped = 0;
   let truncated = false;
   const errors: string[] = [];
@@ -104,13 +109,20 @@ export async function syncWixOrders(): Promise<WixSyncResult> {
       }
 
       const newStatus = line.status ?? "未発送";
-      if (existing.status === newStatus) {
+      const needsStatusUpdate = existing.status !== newStatus;
+      const needsNameBackfill = !existing.customerName && !!line.customerName;
+
+      if (!needsStatusUpdate && !needsNameBackfill) {
         skipped += 1;
         continue;
       }
       try {
-        await updateEventStatus("acc", existing.pageId, newStatus);
-        statusUpdated += 1;
+        await updateSyncedEvent("acc", existing.pageId, {
+          status: needsStatusUpdate ? newStatus : undefined,
+          customerName: needsNameBackfill ? line.customerName : undefined,
+        });
+        if (needsStatusUpdate) statusUpdated += 1;
+        if (needsNameBackfill) nameBackfilled += 1;
       } catch (error) {
         errors.push(`${line.lineId}: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -118,5 +130,5 @@ export async function syncWixOrders(): Promise<WixSyncResult> {
     }
   }
 
-  return { checked, created, statusUpdated, skipped, truncated, errors };
+  return { checked, created, statusUpdated, nameBackfilled, skipped, truncated, errors };
 }
