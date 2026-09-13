@@ -49,6 +49,23 @@ interface WixOrderLineItem {
   productName?: { original?: string };
   quantity?: number;
   price?: { amount?: string };
+  // The buyer's selected options (size, color, ...) for this line, shown
+  // for display purposes on the order — e.g. [{name: {original: "サイズ"},
+  // plainText: {original: "L"}}]. This is the only reliably-typed source
+  // for what variant was actually purchased (catalogReference.options
+  // exists too, but the SDK types it as an untyped Record<string, any>).
+  descriptionLines?: Array<{
+    plainText?: { original?: string };
+    colorInfo?: { original?: string };
+  }>;
+}
+
+/** "アディダスパーカー" + [{plainText:"L"}] -> "アディダスパーカー / L". */
+function withVariantSuffix(baseName: string, item: WixOrderLineItem): string {
+  const parts = (item.descriptionLines ?? [])
+    .map((line) => line.plainText?.original ?? line.colorInfo?.original)
+    .filter((v): v is string => !!v);
+  return parts.length > 0 ? `${baseName} / ${parts.join(" / ")}` : baseName;
 }
 
 interface WixOrder {
@@ -141,7 +158,7 @@ function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOpti
         eventType: "通常販売",
         occurredAt: order.createdDate,
         location: options.location,
-        productName: item.productName?.original ?? "(商品名不明)",
+        productName: withVariantSuffix(item.productName?.original ?? "(商品名不明)", item),
         quantity,
         unitPrice,
         status,

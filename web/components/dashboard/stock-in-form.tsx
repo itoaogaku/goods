@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ProductNameInput } from "@/components/dashboard/product-name-input";
 import { LEDGER_CONFIG } from "@/lib/ledger";
 import type { Ledger, Location } from "@/lib/types";
 
@@ -66,7 +67,7 @@ export function StockInForm({ ledger, onSuccess }: StockInFormProps) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           商品名
-          <Input value={productName} onChange={(e) => setProductName(e.target.value)} required />
+          <ProductNameInput value={productName} onChange={setProductName} required />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           日時

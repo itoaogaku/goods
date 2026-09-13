@@ -14,10 +14,21 @@ const WIX_PRODUCTS_QUERY_URL = "https://www.wixapis.com/stores-reader/v1/product
 
 const PAGE_LIMIT = 100; // PlatformPaging.limit's documented max.
 
+interface WixVariant {
+  // Same "id" (not "_id") pitfall as the product itself — this is the raw
+  // wire field name, confirmed via the same debug endpoint.
+  id?: string;
+  /** Selected option/choice pairs, e.g. {"Color": "グリーン", "Size": "L"}. */
+  choices?: Record<string, string>;
+  variant?: { priceData?: { price?: number | string | null } };
+}
+
 interface WixProduct {
   id?: string;
   name?: string | null;
   priceData?: { price?: number | string | null };
+  /** Present (non-empty) only when the product has manageVariants enabled. */
+  variants?: WixVariant[];
 }
 
 interface WixProductsQueryResponse {
@@ -34,6 +45,41 @@ export interface WixProductItem {
   wixProductId: string;
   name: string;
   listPrice: number;
+}
+
+/**
+ * One product with manageVariants enabled (e.g. size/color chosen from a
+ * dropdown on the product page, rather than separate product listings)
+ * expands into one WixProductItem per variant — same 商品名 convention as
+ * lib/wix.ts uses for order lines, so a sale and its matching price-list
+ * row/stock-in entry read as the same product string. wixProductId for a
+ * variant is `{productId}.{variantId}`, matching Wix's own "store variant
+ * ID" format, so it stays stable even if the product is renamed.
+ */
+function toProductItems(product: WixProduct): WixProductItem[] {
+  if (!product.id) return [];
+  const variants = product.variants ?? [];
+
+  if (variants.length === 0) {
+    return [
+      {
+        wixProductId: product.id,
+        name: product.name ?? "(商品名不明)",
+        listPrice: Number(product.priceData?.price ?? 0),
+      },
+    ];
+  }
+
+  return variants
+    .filter((v): v is WixVariant & { id: string } => !!v.id)
+    .map((v) => {
+      const suffix = Object.values(v.choices ?? {}).join(" / ");
+      return {
+        wixProductId: `${product.id}.${v.id}`,
+        name: suffix ? `${product.name ?? "(商品名不明)"} / ${suffix}` : product.name ?? "(商品名不明)",
+        listPrice: Number(v.variant?.priceData?.price ?? product.priceData?.price ?? 0),
+      };
+    });
 }
 
 async function fetchProductsPage(
@@ -80,13 +126,7 @@ export async function* iterateWixProducts(
     const page = await fetchProductsPage(options, offset);
     const products = page.products ?? [];
 
-    yield products
-      .filter((p): p is WixProduct & { id: string } => !!p.id)
-      .map((p) => ({
-        wixProductId: p.id,
-        name: p.name ?? "(商品名不明)",
-        listPrice: Number(p.priceData?.price ?? 0),
-      }));
+    yield products.flatMap(toProductItems);
 
     offset += products.length;
     const total = page.metadata?.total ?? undefined;

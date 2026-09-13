@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ProductNameInput } from "@/components/dashboard/product-name-input";
 import { LEDGER_CONFIG, MANUAL_ENTRY_EVENT_TYPES } from "@/lib/ledger";
 import type { EventType, Ledger, Location, OrderStatus } from "@/lib/types";
 
@@ -79,7 +80,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           商品名
-          <Input value={productName} onChange={(e) => setProductName(e.target.value)} required />
+          <ProductNameInput value={productName} onChange={setProductName} required />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           日時
