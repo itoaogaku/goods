@@ -1,8 +1,8 @@
 import type { NextRequest } from "next/server";
 import { queryAllEvents } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
-import { isLedger, SALE_EVENT_TYPES } from "@/lib/ledger";
-import type { CustomerMatrixResponse, CustomerMatrixRow } from "@/lib/types";
+import { isLedger, LEDGER_CONFIG, SALE_EVENT_TYPES } from "@/lib/ledger";
+import type { CustomerMatrixResponse, CustomerMatrixRow, Location } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 // A growing ledger can take a while to fully page through — give this
@@ -13,13 +13,15 @@ export async function OPTIONS(request: NextRequest) {
   return preflightResponse(request.headers.get("origin"));
 }
 
-// One row per order (取引ID) or per 入庫 (stock-in) event, one column per
-// distinct product. 送料 rows fold into shippingRevenue instead of becoming
-// a "product" column. Each product cell also carries a running stock
-// balance, so no separate date window: the whole ledger history is read
-// (like /api/[ledger]/stock does) so that balance starts from a true zero
-// rather than from an arbitrary cutoff. Balances are summed across all
-// locations — see the per-location breakdown on the 現在庫 table for that.
+// One row per order (取引ID), per 入庫 (stock-in), or per 拠点間移動 event
+// that touches the requested location, one column per distinct product.
+// 送料 rows fold into shippingRevenue instead of becoming a "product"
+// column. Balances are scoped to a single location (?location=町田寮, say)
+// — 水上村 and 町田寮 are tracked completely separately since almost every
+// Wix order/stock-in happens at 水上村, and a combined total reads
+// misleadingly like "all 町田寮 stock" when it's really almost all 水上村.
+// No date window: the whole ledger history is read (like
+// /api/[ledger]/stock does) so balance starts from a true zero.
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ ledger: string }> }
@@ -31,25 +33,35 @@ export async function GET(
     return jsonWithCors(origin, { error: "不明な台帳です" }, { status: 404 });
   }
 
+  const config = LEDGER_CONFIG[ledger];
+  const requestedLocation = request.nextUrl.searchParams.get("location");
+  const location: Location = config.locations.includes(requestedLocation as Location)
+    ? (requestedLocation as Location)
+    : config.locations[0];
+
   try {
     // queryAllEvents sorts ascending by occurredAt — required here so the
-    // running balance below accumulates in the order things actually happened.
+    // running balance below accumulates in the order things actually
+    // happened. 拠点間移動 has to be fetched too (not just filtered out by
+    // Notion's own `location` query, which only matches the source side) so
+    // both legs — losing stock at the source, gaining it at the destination
+    // — can be evaluated against the requested location below.
     const records = await queryAllEvents(ledger, {
-      eventTypes: [...SALE_EVENT_TYPES, "送料", "入庫"],
+      eventTypes: [...SALE_EVENT_TYPES, "送料", "入庫", "拠点間移動"],
     });
 
     const rowsByTransaction = new Map<string, CustomerMatrixRow>();
     const columnSet = new Set<string>();
     const runningBalance = new Map<string, number>();
 
-    for (const record of records) {
+    function touchRow(record: (typeof records)[number]) {
       let row = rowsByTransaction.get(record.transactionId);
       if (!row) {
         row = {
           transactionId: record.transactionId,
           customerName: record.customerName,
           orderDate: record.occurredAt,
-          isStockIn: record.eventType === "入庫",
+          rowKind: record.eventType === "入庫" ? "stock-in" : record.eventType === "拠点間移動" ? "transfer" : "order",
           products: {},
           productRevenue: 0,
           shippingRevenue: 0,
@@ -60,25 +72,41 @@ export async function GET(
       }
       if (!row.customerName && record.customerName) row.customerName = record.customerName;
       if (record.occurredAt < row.orderDate) row.orderDate = record.occurredAt;
+      return row;
+    }
+
+    function applyDelta(row: CustomerMatrixRow, productName: string, delta: number) {
+      const balance = (runningBalance.get(productName) ?? 0) + delta;
+      runningBalance.set(productName, balance);
+      const cell = row.products[productName];
+      row.products[productName] = { delta: (cell?.delta ?? 0) + delta, balance };
+      columnSet.add(productName);
+    }
+
+    for (const record of records) {
+      if (record.eventType === "拠点間移動") {
+        if (record.location === location) {
+          applyDelta(touchRow(record), record.productName, -record.quantity);
+        } else if (record.destinationLocation === location) {
+          applyDelta(touchRow(record), record.productName, record.quantity);
+        }
+        continue;
+      }
+
+      if (record.location !== location) continue;
 
       if (record.eventType === "送料") {
-        row.shippingRevenue += record.totalAmount;
+        touchRow(record).shippingRevenue += record.totalAmount;
       } else if (record.eventType === "入庫") {
-        const delta = record.quantity;
-        const balance = (runningBalance.get(record.productName) ?? 0) + delta;
-        runningBalance.set(record.productName, balance);
-        const cell = row.products[record.productName];
-        row.products[record.productName] = { delta: (cell?.delta ?? 0) + delta, balance };
-        columnSet.add(record.productName);
+        applyDelta(touchRow(record), record.productName, record.quantity);
       } else {
-        const delta = -record.quantity;
-        const balance = (runningBalance.get(record.productName) ?? 0) + delta;
-        runningBalance.set(record.productName, balance);
-        const cell = row.products[record.productName];
-        row.products[record.productName] = { delta: (cell?.delta ?? 0) + delta, balance };
+        const row = touchRow(record);
+        applyDelta(row, record.productName, -record.quantity);
         row.productRevenue += record.totalAmount;
-        columnSet.add(record.productName);
       }
+    }
+
+    for (const row of rowsByTransaction.values()) {
       row.total = row.productRevenue + row.shippingRevenue;
     }
 

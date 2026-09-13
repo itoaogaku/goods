@@ -93,17 +93,17 @@ export interface StockBalanceEntry {
 export interface CustomerMatrixCell {
   /** Signed change from this row: negative for a sale, positive for a 入庫 stock-in. */
   delta: number;
-  /** Running stock balance for this product immediately after this row, across all locations. */
+  /** Running stock balance for this product immediately after this row, scoped to the requested location. */
   balance: number;
 }
 
-/** One order's (or 入庫 event's) row in the customer×商品 pivot table (see /api/[ledger]/customer-matrix). */
+/** One order's, 入庫's, or 拠点間移動's row in the customer×商品 pivot table (see /api/[ledger]/customer-matrix). */
 export interface CustomerMatrixRow {
   transactionId: string;
   customerName: string;
   orderDate: string;
-  /** True for a 入庫 (stock-in) row rather than a customer order. */
-  isStockIn: boolean;
+  /** "order" rows have a customerName; stock-in/transfer rows generally don't. */
+  rowKind: "order" | "stock-in" | "transfer";
   /** Keyed by productName — only products actually touched by this row are present. */
   products: Record<string, CustomerMatrixCell>;
   productRevenue: number;

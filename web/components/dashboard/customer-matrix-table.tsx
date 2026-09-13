@@ -9,7 +9,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LEDGER_CONFIG } from "@/lib/ledger";
 import { cn, formatJPY, formatNumber } from "@/lib/utils";
 import type { CustomerMatrixResponse, Ledger } from "@/lib/types";
 
@@ -17,7 +19,21 @@ interface CustomerMatrixTableProps {
   ledger: Ledger;
 }
 
+const ROW_LABEL: Record<CustomerMatrixResponse["rows"][number]["rowKind"], string> = {
+  order: "―",
+  "stock-in": "（在庫追加）",
+  transfer: "（拠点間移動）",
+};
+
+const ROW_TINT: Record<CustomerMatrixResponse["rows"][number]["rowKind"], string | undefined> = {
+  order: undefined,
+  "stock-in": "bg-emerald-500/5",
+  transfer: "bg-amber-500/5",
+};
+
 export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
+  const locations = LEDGER_CONFIG[ledger].locations;
+  const [location, setLocation] = useState(locations[0]);
   const [data, setData] = useState<CustomerMatrixResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,7 +44,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/${ledger}/customer-matrix`);
+        const res = await fetch(`/api/${ledger}/customer-matrix?location=${encodeURIComponent(location)}`);
         const body = await res.json();
         if (!res.ok) throw new Error(body.detail ?? body.error ?? `HTTP ${res.status}`);
         if (!cancelled) setData(body);
@@ -44,16 +60,31 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
     return () => {
       cancelled = true;
     };
-  }, [ledger]);
+  }, [ledger, location]);
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base font-semibold text-foreground">顧客別・商品別集計</CardTitle>
+        {locations.length > 1 && (
+          <div className="flex gap-2">
+            {locations.map((loc) => (
+              <Button
+                key={loc}
+                type="button"
+                size="sm"
+                variant={location === loc ? "default" : "outline"}
+                onClick={() => setLocation(loc)}
+              >
+                {loc}
+              </Button>
+            ))}
+          </div>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          新しい注文が一番上に表示されます。各商品列には、その行での増減（注文は−、在庫追加は+）と、その時点での残り在庫数（すべての拠点の合計）を表示します。横にスクロールすると全商品を確認できます。
+          {location}の在庫・注文のみを表示しています。新しい行が一番上に表示されます。各商品列には、その行での増減（注文は−、在庫追加・移動入庫は+）と、その時点での{location}の残り在庫数を表示します。横にスクロールすると全商品を確認できます。
         </p>
 
         {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
@@ -84,10 +115,10 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
               </TableHeader>
               <TableBody>
                 {data.rows.map((row) => (
-                  <TableRow key={row.transactionId} className={row.isStockIn ? "bg-emerald-500/5" : undefined}>
+                  <TableRow key={row.transactionId} className={ROW_TINT[row.rowKind]}>
                     <TableCell className="font-mono text-xs">{row.transactionId}</TableCell>
                     <TableCell className="max-w-32 truncate">
-                      {row.customerName || (row.isStockIn ? "（在庫追加）" : "―")}
+                      {row.customerName || ROW_LABEL[row.rowKind]}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{row.orderDate.slice(0, 10)}</TableCell>
                     {data.columns.map((col) => {
