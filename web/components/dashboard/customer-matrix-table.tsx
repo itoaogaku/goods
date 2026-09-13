@@ -68,7 +68,11 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                   <TableHead>名前</TableHead>
                   <TableHead className="whitespace-nowrap">日時</TableHead>
                   {data.columns.map((col) => (
-                    <TableHead key={col} className="max-w-24 truncate text-right" title={col}>
+                    <TableHead
+                      key={col}
+                      className="max-w-24 truncate border-l border-border text-right"
+                      title={col}
+                    >
                       {col}
                     </TableHead>
                   ))}
@@ -88,9 +92,21 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                     <TableCell className="whitespace-nowrap">{row.orderDate.slice(0, 10)}</TableCell>
                     {data.columns.map((col) => {
                       const cell = row.products[col];
-                      if (!cell) return <TableCell key={col} />;
+                      if (!cell) {
+                        return (
+                          <TableCell
+                            key={col}
+                            className="border-l border-border text-right text-xs tabular-nums text-muted-foreground"
+                          >
+                            0
+                          </TableCell>
+                        );
+                      }
                       return (
-                        <TableCell key={col} className="whitespace-nowrap text-right text-xs tabular-nums">
+                        <TableCell
+                          key={col}
+                          className="whitespace-nowrap border-l border-border text-right text-xs tabular-nums"
+                        >
                           <div className={cn("font-medium", cell.delta > 0 ? "text-emerald-600" : "text-destructive")}>
                             {cell.delta > 0 ? `+${formatNumber(cell.delta)}` : formatNumber(cell.delta)}
                           </div>
