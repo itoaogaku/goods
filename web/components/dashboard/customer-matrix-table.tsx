@@ -70,7 +70,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                   {data.columns.map((col) => (
                     <TableHead
                       key={col}
-                      className="max-w-24 truncate border-l border-border text-right"
+                      className="h-32 max-h-40 whitespace-normal border-l border-border align-bottom [text-orientation:mixed] [writing-mode:vertical-rl]"
                       title={col}
                     >
                       {col}
