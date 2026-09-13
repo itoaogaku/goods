@@ -6,7 +6,6 @@ import { SalesChart } from "@/components/dashboard/sales-chart";
 import { ProductRanking } from "@/components/dashboard/product-ranking";
 import { StockTable } from "@/components/dashboard/stock-table";
 import { PendingShipmentsPanel } from "@/components/dashboard/pending-shipments-panel";
-import { PurchaseOrderPanel } from "@/components/dashboard/purchase-order-panel";
 import { InventoryForms } from "@/components/dashboard/inventory-forms";
 import { EventTable } from "@/components/dashboard/event-table";
 import { WixSyncButton } from "@/components/dashboard/wix-sync-button";
@@ -79,7 +78,7 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
 
       <PendingShipmentsPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <StockTable ledger={ledger} refreshKey={refreshKey} />
-      <PurchaseOrderPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
+      {/* PurchaseOrderPanel (発注一覧) is hidden for now — see inventory-forms.tsx */}
       <InventoryForms ledger={ledger} onChanged={handleChanged} />
       <EventTable ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <DedupePanel ledger={ledger} onChanged={handleChanged} />

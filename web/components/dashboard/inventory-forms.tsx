@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PurchaseOrderForm } from "./purchase-order-form";
 import { StockInForm } from "./stock-in-form";
 import { TransferForm } from "./transfer-form";
 import { ManualEntryForm } from "./manual-entry-form";
@@ -17,8 +16,10 @@ interface InventoryFormsProps {
 
 export function InventoryForms({ ledger, onChanged }: InventoryFormsProps) {
   const config = LEDGER_CONFIG[ledger];
+  // 発注 (purchase-order) is hidden for now — tracking orders at the time
+  // they're placed was more manual bookkeeping than wanted; PurchaseOrderForm
+  // and its API routes are untouched, so re-adding the tab is a one-line change.
   const tabs = [
-    { key: "purchase-order", label: "発注" },
     { key: "stock-in", label: "在庫登録" },
     ...(config.allowTransfer ? [{ key: "transfer", label: "拠点間移動" }] : []),
     { key: "manual", label: "手入力記録" },
@@ -46,7 +47,6 @@ export function InventoryForms({ ledger, onChanged }: InventoryFormsProps) {
           ))}
         </div>
 
-        {active === "purchase-order" && <PurchaseOrderForm ledger={ledger} onSuccess={onChanged} />}
         {active === "stock-in" && <StockInForm ledger={ledger} onSuccess={onChanged} />}
         {active === "transfer" && config.allowTransfer && (
           <TransferForm ledger={ledger} onSuccess={onChanged} />
