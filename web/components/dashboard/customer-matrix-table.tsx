@@ -118,7 +118,9 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                   <TableRow key={row.transactionId} className={ROW_TINT[row.rowKind]}>
                     <TableCell className="font-mono text-xs">{row.transactionId}</TableCell>
                     <TableCell className="max-w-32 truncate">
-                      {row.customerName || ROW_LABEL[row.rowKind]}
+                      {/* 陸上部の卸し（購買会など）や手入力販売はWix連携が無く顧客名が空なので、
+                          代わりに備考（卸し先・宛名など）を表示する */}
+                      {row.customerName || (row.rowKind === "order" ? row.memo : "") || ROW_LABEL[row.rowKind]}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{row.orderDate.slice(0, 10)}</TableCell>
                     {data.columns.map((col) => {
