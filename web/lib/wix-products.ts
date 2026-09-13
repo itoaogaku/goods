@@ -2,18 +2,20 @@
  * Wix's Stores Catalog product-query endpoint. Confirmed via the
  * @wix/auto_sdk_stores_products type definitions (dev.wix.com was blocked
  * from this sandbox, same as for the Orders API — see lib/wix.ts): the
- * "query-platformized" REST path backs the SDK's queryProducts() builder,
- * and Product.priceData.price comes back over the wire as a numeric
- * string (the SDK's own response transform converts it to a JS number —
- * see QueryProductsPlatformizedResponse's transformResponse), same as
- * order line items' price.amount.
+ * "query-platformized" REST path backs the SDK's queryProducts() builder.
+ * The SDK's own TypeScript types rename the wire field to `_id`, but the
+ * raw REST response (confirmed via a temporary debug endpoint) actually
+ * sends it as plain `id` — using `_id` here silently matched nothing and
+ * made every sync report zero products. priceData.price comes back as a
+ * plain JSON number (not a string like Orders' price.amount), but Number()
+ * on it is a harmless no-op either way.
  */
 const WIX_PRODUCTS_QUERY_URL = "https://www.wixapis.com/stores-reader/v1/products/query-platformized";
 
 const PAGE_LIMIT = 100; // PlatformPaging.limit's documented max.
 
 interface WixProduct {
-  _id?: string;
+  id?: string;
   name?: string | null;
   priceData?: { price?: number | string | null };
 }
@@ -79,9 +81,9 @@ export async function* iterateWixProducts(
     const products = page.products ?? [];
 
     yield products
-      .filter((p): p is WixProduct & { _id: string } => !!p._id)
+      .filter((p): p is WixProduct & { id: string } => !!p.id)
       .map((p) => ({
-        wixProductId: p._id,
+        wixProductId: p.id,
         name: p.name ?? "(商品名不明)",
         listPrice: Number(p.priceData?.price ?? 0),
       }));
