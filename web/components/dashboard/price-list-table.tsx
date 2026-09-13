@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProductSyncButton } from "@/components/dashboard/product-sync-button";
 import { formatJPY } from "@/lib/utils";
@@ -20,6 +21,10 @@ export function PriceListTable() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
+  // Price cells are read-only by default and only become editable after
+  // pressing 編集する — a plain always-editable number input is too easy to
+  // bump by accident while scrolling/tapping on a phone.
+  const [editing, setEditing] = useState(false);
 
   async function fetchProducts(): Promise<ProductPriceEntry[]> {
     const res = await fetch("/api/products/list");
@@ -95,15 +100,42 @@ export function PriceListTable() {
     }
   }
 
+  function renderPriceCell(product: ProductPriceEntry, field: "costPrice" | "insiderPrice" | "wholesalePrice") {
+    if (!editing) {
+      const value = product[field];
+      return <span className="tabular-nums">{value === null ? "―" : formatJPY(value)}</span>;
+    }
+    return (
+      <Input
+        type="number"
+        className="ml-auto w-28 text-right"
+        value={product[field] ?? ""}
+        disabled={savingId === product.pageId}
+        onChange={(e) => handlePriceChange(product.pageId, field, e.target.value)}
+        onBlur={() => handlePriceBlur(product.pageId)}
+      />
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle className="text-base font-semibold text-foreground">料金表一覧</CardTitle>
-        <ProductSyncButton onSynced={load} />
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant={editing ? "default" : "outline"}
+            size="sm"
+            onClick={() => setEditing((e) => !e)}
+          >
+            {editing ? "編集を終了" : "編集する"}
+          </Button>
+          <ProductSyncButton onSynced={load} />
+        </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          商品名と定価はWixの商品登録から自動で反映されます。原価・関係者価格・陸上部卸値はこの画面で入力してください（入力欄から離れると自動保存されます）。
+          商品名と定価はWixの商品登録から自動で反映されます。原価・関係者価格・陸上部卸値は誤入力を防ぐため通常は編集できません。変更するときは「編集する」を押してください（入力欄から離れると自動保存されます）。
         </p>
 
         {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
@@ -126,36 +158,9 @@ export function PriceListTable() {
                   <TableRow key={product.pageId}>
                     <TableCell className="max-w-64 truncate">{product.productName}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatJPY(product.listPrice)}</TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        className="ml-auto w-28 text-right"
-                        value={product.costPrice ?? ""}
-                        disabled={savingId === product.pageId}
-                        onChange={(e) => handlePriceChange(product.pageId, "costPrice", e.target.value)}
-                        onBlur={() => handlePriceBlur(product.pageId)}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        className="ml-auto w-28 text-right"
-                        value={product.insiderPrice ?? ""}
-                        disabled={savingId === product.pageId}
-                        onChange={(e) => handlePriceChange(product.pageId, "insiderPrice", e.target.value)}
-                        onBlur={() => handlePriceBlur(product.pageId)}
-                      />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Input
-                        type="number"
-                        className="ml-auto w-28 text-right"
-                        value={product.wholesalePrice ?? ""}
-                        disabled={savingId === product.pageId}
-                        onChange={(e) => handlePriceChange(product.pageId, "wholesalePrice", e.target.value)}
-                        onBlur={() => handlePriceBlur(product.pageId)}
-                      />
-                    </TableCell>
+                    <TableCell className="text-right">{renderPriceCell(product, "costPrice")}</TableCell>
+                    <TableCell className="text-right">{renderPriceCell(product, "insiderPrice")}</TableCell>
+                    <TableCell className="text-right">{renderPriceCell(product, "wholesalePrice")}</TableCell>
                   </TableRow>
                 ))}
                 {products.length === 0 && (
