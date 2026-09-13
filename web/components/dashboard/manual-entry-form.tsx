@@ -28,6 +28,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const [eventType, setEventType] = useState<EventType>("通常販売");
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("0");
+  const [listPrice, setListPrice] = useState("");
   const [status, setStatus] = useState<OrderStatus>("発送済");
   const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -35,6 +36,11 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
 
   const isAdjustment = eventType === "棚卸調整";
   const needsDestinationMemo = eventType === "卸し" || eventType === "プレゼント";
+  // 陸上部の「卸し」は基本的に購買会への販売で、購買会が10%のマージンを
+  // 引いた金額が振り込まれる。定価を入力すれば自動でその金額を計算する。
+  const isCoopWholesale = ledger === "trackteam" && eventType === "卸し";
+  const coopUnitPrice = listPrice === "" ? 0 : Math.round(Number(listPrice) * 0.9);
+  const effectiveUnitPrice = isCoopWholesale ? coopUnitPrice : Number(unitPrice) || 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -51,7 +57,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
           location,
           eventType,
           quantity: Number(quantity),
-          unitPrice: Number(unitPrice) || 0,
+          unitPrice: effectiveUnitPrice,
           status,
           memo,
         }),
@@ -63,6 +69,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       setProductName("");
       setQuantity("");
       setUnitPrice("0");
+      setListPrice("");
       setMemo("");
       onSuccess();
     } catch (err) {
@@ -126,10 +133,20 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
           数量{isAdjustment && "（減らす場合はマイナス）"}
           <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
-          単価
-          <Input type="number" min={0} value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
-        </label>
+        {isCoopWholesale ? (
+          <label className="flex flex-col gap-1 text-sm">
+            定価（購買会での販売価格）
+            <Input type="number" min={0} value={listPrice} onChange={(e) => setListPrice(e.target.value)} />
+            <span className="text-xs text-muted-foreground">
+              購買会の10%マージン差引後、陸上部の単価は ¥{coopUnitPrice.toLocaleString("ja-JP")} として記録されます
+            </span>
+          </label>
+        ) : (
+          <label className="flex flex-col gap-1 text-sm">
+            単価
+            <Input type="number" min={0} value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
+          </label>
+        )}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
