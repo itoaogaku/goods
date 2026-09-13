@@ -38,6 +38,8 @@ export interface InventoryEvent {
   totalAmount: number;
   memo: string;
   status: OrderStatus;
+  /** Wix sync only (billingInfo's name) — empty for manual entries. */
+  customerName: string;
   /** 発注 only, below. */
   poStatus: PurchaseOrderStatus | null;
   receivedQuantity: number;
@@ -80,4 +82,23 @@ export interface StockBalanceEntry {
   productName: string;
   location: Location;
   quantity: number;
+}
+
+/** One order's row in the customer×商品 pivot table (see /api/[ledger]/customer-matrix). */
+export interface CustomerMatrixRow {
+  transactionId: string;
+  customerName: string;
+  orderDate: string;
+  /** Quantity purchased, keyed by productName — only products actually in this order are present. */
+  products: Record<string, number>;
+  productRevenue: number;
+  shippingRevenue: number;
+  total: number;
+  memo: string;
+}
+
+export interface CustomerMatrixResponse {
+  /** Every distinct productName across all rows, in display column order. */
+  columns: string[];
+  rows: CustomerMatrixRow[];
 }

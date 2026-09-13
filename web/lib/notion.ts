@@ -146,6 +146,7 @@ export function pageToInventoryEvent(page: PageObjectResponse): InventoryEvent {
     unitPrice: getNumber(p["単価"]),
     totalAmount: getNumber(p["合計金額"]),
     memo: getPlainText(p["備考"]),
+    customerName: getPlainText(p["顧客名"]),
     status: (getSelectName(p["ステータス"]) as OrderStatus | null) ?? "発送済",
     poStatus: getSelectName(p["発注ステータス"]) as PurchaseOrderStatus | null,
     receivedQuantity: getNumber(p["受領済み数量"]),
@@ -308,6 +309,8 @@ export interface CreateEventInput {
   unitPrice?: number;
   memo?: string;
   status?: OrderStatus;
+  /** Wix sync only — omitted (and left blank) for manual entries. */
+  customerName?: string;
   /** 発注 only, below. */
   poStatus?: PurchaseOrderStatus;
   receivedQuantity?: number;
@@ -335,6 +338,7 @@ export async function createEvent(ledger: Ledger, event: CreateEventInput): Prom
       単価: { number: unitPrice },
       合計金額: { number: unitPrice * event.quantity },
       備考: { rich_text: [{ text: { content: event.memo ?? "" } }] },
+      顧客名: { rich_text: [{ text: { content: event.customerName ?? "" } }] },
       ステータス: { select: { name: event.status ?? "発送済" } },
       ...(event.poStatus ? { 発注ステータス: { select: { name: event.poStatus } } } : {}),
       ...(event.receivedQuantity !== undefined

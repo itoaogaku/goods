@@ -58,6 +58,12 @@ interface WixOrder {
   paymentStatus?: string;
   lineItems?: WixOrderLineItem[];
   priceSummary?: { shipping?: { amount?: string } };
+  billingInfo?: { contactDetails?: { firstName?: string | null; lastName?: string | null } };
+}
+
+function buyerName(order: WixOrder): string {
+  const contact = order.billingInfo?.contactDetails;
+  return [contact?.firstName, contact?.lastName].filter(Boolean).join(" ");
 }
 
 interface WixOrdersSearchResponse {
@@ -119,6 +125,7 @@ function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOpti
 
   for (const order of page.orders) {
     const status = normalizeStatus(order.fulfillmentStatus, order.paymentStatus);
+    const customerName = buyerName(order);
     (order.lineItems ?? []).forEach((item, index) => {
       const quantity = item.quantity ?? 0;
       const unitPrice = Number(item.price?.amount ?? 0);
@@ -138,6 +145,7 @@ function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOpti
         quantity,
         unitPrice,
         status,
+        customerName,
       });
     });
 
@@ -155,6 +163,7 @@ function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOpti
         quantity: 1,
         unitPrice: shippingAmount,
         status,
+        customerName,
       });
     }
   }
