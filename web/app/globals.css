@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 :root {
+  /* Always render native form controls (date picker, scrollbar, etc.) in
+     light mode too, regardless of the OS/browser color-scheme preference. */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
   --card: #ffffff;
@@ -44,28 +47,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --card: #111113;
-    --card-foreground: #ededed;
-    --popover: #111113;
-    --popover-foreground: #ededed;
-    --primary: #22c55e;
-    --primary-foreground: #052e16;
-    --secondary: #1f1f23;
-    --secondary-foreground: #ededed;
-    --muted: #1f1f23;
-    --muted-foreground: #a1a1aa;
-    --accent: #1f1f23;
-    --accent-foreground: #ededed;
-    --destructive: #f87171;
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #22c55e;
-  }
-}
+/* Dark mode intentionally not supported — always use the light palette
+   above, regardless of the OS/browser color-scheme preference. */
 
 body {
   background: var(--background);
