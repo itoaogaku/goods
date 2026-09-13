@@ -82,11 +82,32 @@ export async function GET(
       row.total = row.productRevenue + row.shippingRevenue;
     }
 
+    const columns = [...columnSet].sort((a, b) => a.localeCompare(b, "ja"));
+
+    // Backfill every row's untouched columns with a 0-delta cell carrying
+    // that product's balance as of this row — otherwise a "0" cell would
+    // have no 残 to show, since only columns a row's own records touched
+    // got an entry in the loop above. Requires walking rows chronologically
+    // (oldest first) same as the balance calc itself, then the final
+    // response reverses to newest-first for display.
+    const chronologicalRows = [...rowsByTransaction.values()].sort((a, b) =>
+      a.orderDate.localeCompare(b.orderDate)
+    );
+    const snapshotBalance = new Map<string, number>();
+    for (const row of chronologicalRows) {
+      for (const col of columns) {
+        const existing = row.products[col];
+        if (existing) {
+          snapshotBalance.set(col, existing.balance);
+        } else {
+          row.products[col] = { delta: 0, balance: snapshotBalance.get(col) ?? 0 };
+        }
+      }
+    }
+
     const response: CustomerMatrixResponse = {
-      columns: [...columnSet].sort((a, b) => a.localeCompare(b, "ja")),
-      // Newest first for display; the running balance above was already
-      // computed in chronological order before this reverses it.
-      rows: [...rowsByTransaction.values()].sort((a, b) => b.orderDate.localeCompare(a.orderDate)),
+      columns,
+      rows: chronologicalRows.reverse(),
     };
 
     return jsonWithCors(origin, response);

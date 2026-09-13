@@ -92,22 +92,18 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                     <TableCell className="whitespace-nowrap">{row.orderDate.slice(0, 10)}</TableCell>
                     {data.columns.map((col) => {
                       const cell = row.products[col];
-                      if (!cell) {
-                        return (
-                          <TableCell
-                            key={col}
-                            className="border-l border-border text-right text-xs tabular-nums text-muted-foreground"
-                          >
-                            0
-                          </TableCell>
-                        );
-                      }
                       return (
                         <TableCell
                           key={col}
                           className="whitespace-nowrap border-l border-border text-right text-xs tabular-nums"
                         >
-                          <div className={cn("font-medium", cell.delta > 0 ? "text-emerald-600" : "text-destructive")}>
+                          <div
+                            className={cn(
+                              "font-medium",
+                              cell.delta > 0 && "text-emerald-600",
+                              cell.delta < 0 && "text-destructive"
+                            )}
+                          >
                             {cell.delta > 0 ? `+${formatNumber(cell.delta)}` : formatNumber(cell.delta)}
                           </div>
                           <div className="text-muted-foreground">残{formatNumber(cell.balance)}</div>
