@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StockInForm } from "./stock-in-form";
 import { TransferForm } from "./transfer-form";
 import { ManualEntryForm } from "./manual-entry-form";
+import { ExpenseForm } from "./expense-form";
 import { LEDGER_CONFIG } from "@/lib/ledger";
 import type { Ledger } from "@/lib/types";
 
@@ -21,6 +22,7 @@ export function InventoryForms({ ledger, onChanged }: InventoryFormsProps) {
   // and its API routes are untouched, so re-adding the tab is a one-line change.
   const tabs = [
     { key: "stock-in", label: "在庫登録" },
+    { key: "expense", label: "経費登録" },
     ...(config.allowTransfer ? [{ key: "transfer", label: "拠点間移動" }] : []),
     { key: "manual", label: "手入力記録" },
   ] as const;
@@ -48,6 +50,7 @@ export function InventoryForms({ ledger, onChanged }: InventoryFormsProps) {
         </div>
 
         {active === "stock-in" && <StockInForm ledger={ledger} onSuccess={onChanged} />}
+        {active === "expense" && <ExpenseForm ledger={ledger} onSuccess={onChanged} />}
         {active === "transfer" && config.allowTransfer && (
           <TransferForm ledger={ledger} onSuccess={onChanged} />
         )}

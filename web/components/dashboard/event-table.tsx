@@ -37,6 +37,7 @@ const EVENT_TYPE_VARIANT: Record<EventType, "success" | "warning" | "secondary" 
   卸し: "outline",
   棚卸調整: "warning",
   送料: "secondary",
+  経費: "warning",
 };
 
 interface EventTableProps {

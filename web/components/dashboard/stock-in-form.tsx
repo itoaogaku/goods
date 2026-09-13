@@ -22,6 +22,7 @@ export function StockInForm({ ledger, onSuccess }: StockInFormProps) {
   const [productName, setProductName] = useState("");
   const [occurredAt, setOccurredAt] = useState(today());
   const [quantities, setQuantities] = useState<Partial<Record<Location, string>>>({});
+  const [unitCost, setUnitCost] = useState("");
   const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -41,6 +42,7 @@ export function StockInForm({ ledger, onSuccess }: StockInFormProps) {
           quantities: Object.fromEntries(
             Object.entries(quantities).map(([loc, v]) => [loc, Number(v) || 0])
           ),
+          unitCost: unitCost === "" ? undefined : Number(unitCost),
           memo,
         }),
       });
@@ -50,6 +52,7 @@ export function StockInForm({ ledger, onSuccess }: StockInFormProps) {
       setMessage({ type: "success", text: `在庫登録しました（${data.created}拠点）` });
       setProductName("");
       setQuantities({});
+      setUnitCost("");
       setMemo("");
       onSuccess();
     } catch (err) {
@@ -62,7 +65,7 @@ export function StockInForm({ ledger, onSuccess }: StockInFormProps) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <p className="text-sm text-muted-foreground">
-        商品が完成したら、拠点ごとの数量を入力してください。入力した拠点の分だけ在庫が追加されます。
+        商品が完成したら、拠点ごとの数量を入力してください。入力した拠点の分だけ在庫が追加されます。仕入単価を入力すると、その仕入れ費用が経費として自動で記録されます（年間の売上・経費の集計に反映されます）。
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
@@ -88,10 +91,22 @@ export function StockInForm({ ledger, onSuccess }: StockInFormProps) {
           </label>
         ))}
       </div>
-      <label className="flex flex-col gap-1 text-sm">
-        備考（任意）
-        <Input value={memo} onChange={(e) => setMemo(e.target.value)} />
-      </label>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm">
+          仕入単価（1個あたり・任意）
+          <Input
+            type="number"
+            min={0}
+            value={unitCost}
+            onChange={(e) => setUnitCost(e.target.value)}
+            placeholder="経費として自動記録されます"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
+          備考（任意）
+          <Input value={memo} onChange={(e) => setMemo(e.target.value)} />
+        </label>
+      </div>
       {message && (
         <p className={`text-sm ${message.type === "error" ? "text-destructive" : "text-emerald-600"}`}>
           {message.text}

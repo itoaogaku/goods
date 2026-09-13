@@ -15,6 +15,8 @@ interface StockInBody {
   productName?: string;
   occurredAt?: string;
   quantities?: Partial<Record<Location, number>>;
+  /** Cost per unit — recorded on each 入庫 row so it counts toward 経費 in the summary. */
+  unitCost?: number;
   memo?: string;
 }
 
@@ -62,6 +64,11 @@ export async function POST(
     );
   }
 
+  const unitCost = body?.unitCost;
+  if (unitCost !== undefined && (!Number.isFinite(unitCost) || unitCost < 0)) {
+    return jsonWithCors(origin, { error: "仕入単価は0以上を指定してください" }, { status: 400 });
+  }
+
   const transactionId = generateTransactionId("STOCK", occurredAt);
 
   try {
@@ -74,7 +81,7 @@ export async function POST(
         location,
         productName,
         quantity,
-        unitPrice: 0,
+        unitPrice: unitCost ?? 0,
         memo: body?.memo ?? "",
         status: "発送済",
       });

@@ -13,10 +13,12 @@ export function KpiCards({ kpi }: KpiCardsProps) {
     { label: "総販売個数", value: `${formatNumber(kpi.totalQuantity)} 個` },
     { label: "未対応注文数", value: `${formatNumber(kpi.pendingCount)} 件` },
     { label: "送料合計（2025年3月〜）", value: formatJPY(kpi.shippingRevenue) },
+    { label: "経費合計（2025年3月〜）", value: formatJPY(kpi.expenseTotal) },
+    { label: "損益（2025年3月〜）", value: formatJPY(kpi.netProfit) },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
         <Card key={card.label}>
           <CardHeader>
