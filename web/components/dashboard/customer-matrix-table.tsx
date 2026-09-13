@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatJPY, formatNumber } from "@/lib/utils";
+import { cn, formatJPY, formatNumber } from "@/lib/utils";
 import type { CustomerMatrixResponse, Ledger } from "@/lib/types";
 
 interface CustomerMatrixTableProps {
@@ -53,7 +53,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          注文（取引ID）ごとに、どの商品を何点購入したかを一覧にしています。横にスクロールすると全商品を確認できます。
+          新しい注文が一番上に表示されます。各商品列には、その行での増減（注文は−、在庫追加は+）と、その時点での残り在庫数（すべての拠点の合計）を表示します。横にスクロールすると全商品を確認できます。
         </p>
 
         {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
@@ -64,9 +64,9 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 z-10 bg-background">取引ID</TableHead>
-                  <TableHead className="sticky left-0 z-10 bg-background">名前</TableHead>
-                  <TableHead className="whitespace-nowrap">注文日</TableHead>
+                  <TableHead>取引ID</TableHead>
+                  <TableHead>名前</TableHead>
+                  <TableHead className="whitespace-nowrap">日時</TableHead>
                   {data.columns.map((col) => (
                     <TableHead key={col} className="max-w-24 truncate text-right" title={col}>
                       {col}
@@ -80,15 +80,24 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
               </TableHeader>
               <TableBody>
                 {data.rows.map((row) => (
-                  <TableRow key={row.transactionId}>
+                  <TableRow key={row.transactionId} className={row.isStockIn ? "bg-emerald-500/5" : undefined}>
                     <TableCell className="font-mono text-xs">{row.transactionId}</TableCell>
-                    <TableCell className="max-w-32 truncate">{row.customerName || "―"}</TableCell>
+                    <TableCell className="max-w-32 truncate">
+                      {row.customerName || (row.isStockIn ? "（在庫追加）" : "―")}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">{row.orderDate.slice(0, 10)}</TableCell>
-                    {data.columns.map((col) => (
-                      <TableCell key={col} className="text-right tabular-nums">
-                        {row.products[col] ? formatNumber(row.products[col]) : ""}
-                      </TableCell>
-                    ))}
+                    {data.columns.map((col) => {
+                      const cell = row.products[col];
+                      if (!cell) return <TableCell key={col} />;
+                      return (
+                        <TableCell key={col} className="whitespace-nowrap text-right text-xs tabular-nums">
+                          <div className={cn("font-medium", cell.delta > 0 ? "text-emerald-600" : "text-destructive")}>
+                            {cell.delta > 0 ? `+${formatNumber(cell.delta)}` : formatNumber(cell.delta)}
+                          </div>
+                          <div className="text-muted-foreground">残{formatNumber(cell.balance)}</div>
+                        </TableCell>
+                      );
+                    })}
                     <TableCell className="text-right tabular-nums">{formatJPY(row.productRevenue)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatJPY(row.shippingRevenue)}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">{formatJPY(row.total)}</TableCell>

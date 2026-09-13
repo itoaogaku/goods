@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { queryAllEvents, SALES_DATA_SINCE } from "@/lib/notion";
+import { queryAllEvents } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
 import { isLedger, SALE_EVENT_TYPES } from "@/lib/ledger";
 import type { CustomerMatrixResponse, CustomerMatrixRow } from "@/lib/types";
@@ -13,9 +13,13 @@ export async function OPTIONS(request: NextRequest) {
   return preflightResponse(request.headers.get("origin"));
 }
 
-// One row per order (取引ID), one column per distinct product — the same
-// event stream the transaction table and summary already use, just pivoted.
-// 送料 rows fold into shippingRevenue instead of becoming a "product" column.
+// One row per order (取引ID) or per 入庫 (stock-in) event, one column per
+// distinct product. 送料 rows fold into shippingRevenue instead of becoming
+// a "product" column. Each product cell also carries a running stock
+// balance, so no separate date window: the whole ledger history is read
+// (like /api/[ledger]/stock does) so that balance starts from a true zero
+// rather than from an arbitrary cutoff. Balances are summed across all
+// locations — see the per-location breakdown on the 現在庫 table for that.
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ ledger: string }> }
@@ -28,13 +32,15 @@ export async function GET(
   }
 
   try {
+    // queryAllEvents sorts ascending by occurredAt — required here so the
+    // running balance below accumulates in the order things actually happened.
     const records = await queryAllEvents(ledger, {
-      dateFrom: SALES_DATA_SINCE,
-      eventTypes: [...SALE_EVENT_TYPES, "送料"],
+      eventTypes: [...SALE_EVENT_TYPES, "送料", "入庫"],
     });
 
     const rowsByTransaction = new Map<string, CustomerMatrixRow>();
     const columnSet = new Set<string>();
+    const runningBalance = new Map<string, number>();
 
     for (const record of records) {
       let row = rowsByTransaction.get(record.transactionId);
@@ -43,6 +49,7 @@ export async function GET(
           transactionId: record.transactionId,
           customerName: record.customerName,
           orderDate: record.occurredAt,
+          isStockIn: record.eventType === "入庫",
           products: {},
           productRevenue: 0,
           shippingRevenue: 0,
@@ -56,8 +63,19 @@ export async function GET(
 
       if (record.eventType === "送料") {
         row.shippingRevenue += record.totalAmount;
+      } else if (record.eventType === "入庫") {
+        const delta = record.quantity;
+        const balance = (runningBalance.get(record.productName) ?? 0) + delta;
+        runningBalance.set(record.productName, balance);
+        const cell = row.products[record.productName];
+        row.products[record.productName] = { delta: (cell?.delta ?? 0) + delta, balance };
+        columnSet.add(record.productName);
       } else {
-        row.products[record.productName] = (row.products[record.productName] ?? 0) + record.quantity;
+        const delta = -record.quantity;
+        const balance = (runningBalance.get(record.productName) ?? 0) + delta;
+        runningBalance.set(record.productName, balance);
+        const cell = row.products[record.productName];
+        row.products[record.productName] = { delta: (cell?.delta ?? 0) + delta, balance };
         row.productRevenue += record.totalAmount;
         columnSet.add(record.productName);
       }
@@ -66,7 +84,9 @@ export async function GET(
 
     const response: CustomerMatrixResponse = {
       columns: [...columnSet].sort((a, b) => a.localeCompare(b, "ja")),
-      rows: [...rowsByTransaction.values()].sort((a, b) => a.orderDate.localeCompare(b.orderDate)),
+      // Newest first for display; the running balance above was already
+      // computed in chronological order before this reverses it.
+      rows: [...rowsByTransaction.values()].sort((a, b) => b.orderDate.localeCompare(a.orderDate)),
     };
 
     return jsonWithCors(origin, response);
