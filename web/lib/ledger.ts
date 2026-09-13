@@ -21,7 +21,7 @@ export const LEDGER_CONFIG: Record<Ledger, LedgerConfig> = {
   acc: {
     label: "アスリートキャリアセンター 在庫・販売管理",
     shortLabel: "アスリートキャリアセンター",
-    locations: ["水上村", "町田寮"],
+    locations: ["水上村", "町田"],
     allowTransfer: true,
   },
   trackteam: {

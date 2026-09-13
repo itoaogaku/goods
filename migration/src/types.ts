@@ -1,7 +1,7 @@
 export type OrderStatus = "未発送" | "発送済" | "キャンセル" | "返金";
 
 /** Matches the Notion database's 拠点 select. Wix orders always ship from 水上村. */
-export type Location = "水上村" | "町田寮" | "陸上部";
+export type Location = "水上村" | "町田" | "陸上部";
 
 /**
  * Matches the Notion database's 種別 select. This CLI only ever imports

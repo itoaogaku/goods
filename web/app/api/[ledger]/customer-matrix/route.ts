@@ -16,10 +16,10 @@ export async function OPTIONS(request: NextRequest) {
 // One row per order (取引ID), per 入庫 (stock-in), or per 拠点間移動 event
 // that touches the requested location, one column per distinct product.
 // 送料 rows fold into shippingRevenue instead of becoming a "product"
-// column. Balances are scoped to a single location (?location=町田寮, say)
-// — 水上村 and 町田寮 are tracked completely separately since almost every
+// column. Balances are scoped to a single location (?location=町田, say)
+// — 水上村 and 町田 are tracked completely separately since almost every
 // Wix order/stock-in happens at 水上村, and a combined total reads
-// misleadingly like "all 町田寮 stock" when it's really almost all 水上村.
+// misleadingly like "all 町田 stock" when it's really almost all 水上村.
 // No date window: the whole ledger history is read (like
 // /api/[ledger]/stock does) so balance starts from a true zero.
 export async function GET(
