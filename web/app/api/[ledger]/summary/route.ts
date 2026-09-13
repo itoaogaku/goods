@@ -25,14 +25,15 @@ export async function GET(
   }
 
   try {
-    // 送料・経費・入庫 rows are fetched in the same query as the sale types
-    // so this doesn't cost a second full scan, but are tracked as their own
+    // 送料・経費 rows are fetched in the same query as the sale types so
+    // this doesn't cost a second full scan, but are tracked as their own
     // KPIs instead of folding into product revenue/ranking/quantity — see
-    // the branches below. 入庫's own 単価 (cost per unit, entered on the
-    // 在庫登録 form) counts toward expenseTotal alongside dedicated 経費 rows.
+    // the branches below. A stock-in's purchase cost is recorded as its own
+    // 経費 row (see /api/[ledger]/stock-in), so this single event type
+    // covers both hand-entered expenses and procurement cost.
     const records = await queryAllEvents(ledger, {
       dateFrom: SALES_DATA_SINCE,
-      eventTypes: [...SALE_EVENT_TYPES, "送料", "経費", "入庫"],
+      eventTypes: [...SALE_EVENT_TYPES, "送料", "経費"],
     });
 
     const monthlyMap = new Map<string, MonthlyStat>();
@@ -52,7 +53,7 @@ export async function GET(
         shippingRevenue += record.totalAmount;
         continue;
       }
-      if (record.eventType === "経費" || record.eventType === "入庫") {
+      if (record.eventType === "経費") {
         expenseTotal += record.totalAmount;
         continue;
       }

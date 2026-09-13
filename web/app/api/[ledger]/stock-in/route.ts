@@ -15,8 +15,8 @@ interface StockInBody {
   productName?: string;
   occurredAt?: string;
   quantities?: Partial<Record<Location, number>>;
-  /** Cost per unit — recorded on each 入庫 row so it counts toward 経費 in the summary. */
-  unitCost?: number;
+  /** Total amount paid for this stock-in — recorded as its own 経費 row, not split per unit/location. */
+  purchaseAmount?: number;
   memo?: string;
 }
 
@@ -64,9 +64,9 @@ export async function POST(
     );
   }
 
-  const unitCost = body?.unitCost;
-  if (unitCost !== undefined && (!Number.isFinite(unitCost) || unitCost < 0)) {
-    return jsonWithCors(origin, { error: "仕入単価は0以上を指定してください" }, { status: 400 });
+  const purchaseAmount = body?.purchaseAmount;
+  if (purchaseAmount !== undefined && (!Number.isFinite(purchaseAmount) || purchaseAmount < 0)) {
+    return jsonWithCors(origin, { error: "仕入れ金額は0以上を指定してください" }, { status: 400 });
   }
 
   const transactionId = generateTransactionId("STOCK", occurredAt);
@@ -81,8 +81,27 @@ export async function POST(
         location,
         productName,
         quantity,
-        unitPrice: unitCost ?? 0,
+        unitPrice: 0,
         memo: body?.memo ?? "",
+        status: "発送済",
+      });
+    }
+
+    // Purchase cost is recorded as its own 経費 row (quantity 1, unitPrice =
+    // the full amount) rather than split across the 入庫 rows above — the
+    // amount paid for a batch doesn't divide evenly by unit in general, and
+    // this avoids rounding it across possibly multiple locations.
+    if (purchaseAmount && purchaseAmount > 0) {
+      await createEvent(ledger, {
+        transactionId,
+        lineId: generateLineId("stockin_expense"),
+        eventType: "経費",
+        occurredAt,
+        location: config.locations[0],
+        productName,
+        quantity: 1,
+        unitPrice: purchaseAmount,
+        memo: body?.memo ? `仕入れ: ${body.memo}` : "仕入れ",
         status: "発送済",
       });
     }
