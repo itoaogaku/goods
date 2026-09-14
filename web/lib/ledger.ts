@@ -20,7 +20,7 @@ export const LEDGERS: Ledger[] = ["acc", "trackteam"];
 export const LEDGER_CONFIG: Record<Ledger, LedgerConfig> = {
   acc: {
     label: "アスリートキャリアセンター 在庫・販売管理",
-    shortLabel: "アスリートキャリアセンター",
+    shortLabel: "ACC",
     locations: ["水上村", "町田"],
     allowTransfer: true,
   },
