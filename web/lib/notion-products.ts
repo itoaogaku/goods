@@ -6,6 +6,7 @@ import {
 } from "@notionhq/client";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { getNotionClient, withNotionRetry } from "./notion";
+import { compareProductNames } from "./utils";
 import type { ProductPriceEntry } from "./types";
 
 /**
@@ -84,7 +85,7 @@ async function queryAllProducts(notion: Client): Promise<ProductPriceEntry[]> {
 export async function listProducts(): Promise<ProductPriceEntry[]> {
   const notion = getNotionClient();
   const entries = await queryAllProducts(notion);
-  return entries.sort((a, b) => a.productName.localeCompare(b.productName, "ja"));
+  return entries.sort((a, b) => compareProductNames(a.productName, b.productName));
 }
 
 /** Every existing row indexed by Wix product ID, for the sync's create-vs-update decision. */

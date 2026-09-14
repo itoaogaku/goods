@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { queryAllEvents } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
 import { isLedger, LEDGER_CONFIG, SALE_EVENT_TYPES } from "@/lib/ledger";
+import { compareProductNames } from "@/lib/utils";
 import type { CustomerMatrixResponse, CustomerMatrixRow, Location } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -118,15 +119,17 @@ export async function GET(
     }
 
     // Products restocked at least once come first, most-recently-restocked
-    // first; products never stocked in through this system fall to the end,
-    // sorted alphabetically among themselves.
+    // first (same-date ties, e.g. every size of one color stocked in
+    // together, fall back to compareProductNames so they stay grouped in
+    // XL/L/M/S/XS order); products never stocked in through this system
+    // fall to the end, sorted the same way among themselves.
     const columns = [...columnSet].sort((a, b) => {
       const dateA = lastStockInDate.get(a);
       const dateB = lastStockInDate.get(b);
-      if (dateA && dateB) return dateB.localeCompare(dateA);
+      if (dateA && dateB) return dateB.localeCompare(dateA) || compareProductNames(a, b);
       if (dateA) return -1;
       if (dateB) return 1;
-      return a.localeCompare(b, "ja");
+      return compareProductNames(a, b);
     });
 
     // Backfill every row's untouched columns with a 0-delta cell carrying

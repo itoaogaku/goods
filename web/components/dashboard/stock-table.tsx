@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatNumber } from "@/lib/utils";
+import { compareProductNames, formatNumber } from "@/lib/utils";
 import { LEDGER_CONFIG } from "@/lib/ledger";
 import type { Ledger, StockBalanceEntry } from "@/lib/types";
 
@@ -41,7 +41,7 @@ export function StockTable({ ledger, refreshKey }: StockTableProps) {
   }, [ledger, refreshKey]);
 
   // Pivot to one row per product with a column per location.
-  const products = [...new Set((balances ?? []).map((b) => b.productName))].sort();
+  const products = [...new Set((balances ?? []).map((b) => b.productName))].sort(compareProductNames);
   const byProductLocation = new Map<string, number>();
   const purchasedByProduct = new Map<string, number>();
   for (const b of balances ?? []) {
