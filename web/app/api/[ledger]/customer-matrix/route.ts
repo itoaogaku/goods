@@ -53,6 +53,9 @@ export async function GET(
     const rowsByTransaction = new Map<string, CustomerMatrixRow>();
     const columnSet = new Set<string>();
     const runningBalance = new Map<string, number>();
+    // Latest 入庫(在庫追加) date per product, so columns can be ordered by
+    // "most recently restocked first" instead of alphabetically.
+    const lastStockInDate = new Map<string, string>();
 
     function touchRow(record: (typeof records)[number]) {
       let row = rowsByTransaction.get(record.transactionId);
@@ -99,6 +102,10 @@ export async function GET(
         touchRow(record).shippingRevenue += record.totalAmount;
       } else if (record.eventType === "入庫") {
         applyDelta(touchRow(record), record.productName, record.quantity);
+        const prevStockIn = lastStockInDate.get(record.productName);
+        if (!prevStockIn || record.occurredAt > prevStockIn) {
+          lastStockInDate.set(record.productName, record.occurredAt);
+        }
       } else {
         const row = touchRow(record);
         applyDelta(row, record.productName, -record.quantity);
@@ -110,7 +117,17 @@ export async function GET(
       row.total = row.productRevenue + row.shippingRevenue;
     }
 
-    const columns = [...columnSet].sort((a, b) => a.localeCompare(b, "ja"));
+    // Products restocked at least once come first, most-recently-restocked
+    // first; products never stocked in through this system fall to the end,
+    // sorted alphabetically among themselves.
+    const columns = [...columnSet].sort((a, b) => {
+      const dateA = lastStockInDate.get(a);
+      const dateB = lastStockInDate.get(b);
+      if (dateA && dateB) return dateB.localeCompare(dateA);
+      if (dateA) return -1;
+      if (dateB) return 1;
+      return a.localeCompare(b, "ja");
+    });
 
     // Backfill every row's untouched columns with a 0-delta cell carrying
     // that product's balance as of this row — otherwise a "0" cell would
