@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
+import { DateRangeFilter, type DateRange } from "@/components/dashboard/date-range-filter";
 import { SalesChart } from "@/components/dashboard/sales-chart";
 import { ProductRanking } from "@/components/dashboard/product-ranking";
 import { StockTable } from "@/components/dashboard/stock-table";
@@ -25,11 +26,16 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange>({});
 
   useEffect(() => {
     async function loadSummary() {
       try {
-        const res = await fetch(`/api/${ledger}/summary`);
+        const params = new URLSearchParams();
+        if (dateRange.from) params.set("from", dateRange.from);
+        if (dateRange.to) params.set("to", dateRange.to);
+        const query = params.toString();
+        const res = await fetch(`/api/${ledger}/summary${query ? `?${query}` : ""}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         setSummary(await res.json());
         setError(null);
@@ -39,7 +45,7 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
       }
     }
     void loadSummary();
-  }, [ledger, refreshKey]);
+  }, [ledger, refreshKey, dateRange]);
 
   function handleChanged() {
     setRefreshKey((k) => k + 1);
@@ -64,9 +70,11 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
         </div>
       )}
 
+      <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
       {summary ? (
         <>
-          <KpiCards kpi={summary.kpi} />
+          <KpiCards kpi={summary.kpi} rangeStart={summary.rangeStart} rangeEnd={summary.rangeEnd} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <SalesChart data={summary.monthlyStats} />

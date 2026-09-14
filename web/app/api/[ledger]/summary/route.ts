@@ -24,6 +24,13 @@ export async function GET(
     return jsonWithCors(origin, { error: "不明な台帳です" }, { status: 404 });
   }
 
+  // Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD to scope every figure below
+  // (KPIs, monthly chart, product ranking) to a chosen period instead of
+  // the full history since SALES_DATA_SINCE — see DateRangeFilter.
+  const from = request.nextUrl.searchParams.get("from") || undefined;
+  const to = request.nextUrl.searchParams.get("to") || undefined;
+  const rangeStart = from ?? SALES_DATA_SINCE;
+
   try {
     // 送料・経費 rows are fetched in the same query as the sale types so
     // this doesn't cost a second full scan, but are tracked as their own
@@ -32,7 +39,8 @@ export async function GET(
     // 経費 row (see /api/[ledger]/stock-in), so this single event type
     // covers both hand-entered expenses and procurement cost.
     const records = await queryAllEvents(ledger, {
-      dateFrom: SALES_DATA_SINCE,
+      dateFrom: rangeStart,
+      dateTo: to,
       eventTypes: [...SALE_EVENT_TYPES, "送料", "経費"],
     });
 
@@ -81,7 +89,8 @@ export async function GET(
     }
 
     const summary: SalesSummary = {
-      rangeStart: SALES_DATA_SINCE,
+      rangeStart,
+      rangeEnd: to ?? null,
       generatedAt: new Date().toISOString(),
       kpi: {
         currentMonthRevenue,

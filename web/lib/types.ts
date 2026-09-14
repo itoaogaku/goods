@@ -60,6 +60,8 @@ export interface ProductRankingEntry {
 
 export interface SalesSummary {
   rangeStart: string;
+  /** Inclusive end date (YYYY-MM-DD) of the requested period, or null when unbounded (up to now). */
+  rangeEnd: string | null;
   generatedAt: string;
   kpi: {
     currentMonthRevenue: number;
