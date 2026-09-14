@@ -45,7 +45,6 @@ export const EVENT_TYPES: EventType[] = [
   "拠点間移動",
   "卸し",
   "棚卸調整",
-  "在庫調整",
   "送料",
   "経費",
 ];

@@ -77,7 +77,7 @@ export function StockTable({ ledger, refreshKey }: StockTableProps) {
               <TableRow>
                 <TableHead>商品名</TableHead>
                 <TableHead className="text-right">仕入れ数</TableHead>
-                <TableHead className="text-right">在庫調整</TableHead>
+                <TableHead className="text-right">棚卸調整</TableHead>
                 {config.locations.map((loc) => (
                   <TableHead key={loc} className="text-right">
                     {loc}

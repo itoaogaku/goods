@@ -304,9 +304,8 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
       add(event.productName, event.location, -event.quantity);
       add(event.productName, event.destinationLocation, event.quantity);
     } else if (event.eventType === "棚卸調整") {
-      add(event.productName, event.location, event.quantity);
-    } else if (event.eventType === "在庫調整") {
-      // 実際の在庫数(quantity)には触れず、別枠の集計にのみ積み上げる。
+      // 実際の在庫数(quantity)には触れず、別枠の集計にのみ積み上げる — 現在庫の
+      // 「仕入れ数」の右にある専用の「棚卸調整」列に表示される。
       ensureEntry(event.productName, event.location).adjustmentQuantity += event.quantity;
     }
   }

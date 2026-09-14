@@ -36,7 +36,6 @@ const EVENT_TYPE_VARIANT: Record<EventType, "success" | "warning" | "secondary" 
   拠点間移動: "warning",
   卸し: "outline",
   棚卸調整: "warning",
-  在庫調整: "warning",
   送料: "secondary",
   経費: "warning",
 };
