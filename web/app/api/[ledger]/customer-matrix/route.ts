@@ -118,15 +118,16 @@ export async function GET(
       row.total = row.productRevenue + row.shippingRevenue;
     }
 
-    // Products restocked at least once come first, most-recently-restocked
-    // first (same-date ties, e.g. every size of one color stocked in
-    // together, fall back to compareProductNames so they stay grouped in
-    // XL/L/M/S/XS order); products never stocked in through this system
-    // fall to the end, sorted the same way among themselves.
+    // Products restocked at least once come first, oldest-restocked-first
+    // (leftmost = earliest 在庫追加, getting newer to the right; same-date
+    // ties, e.g. every size of one color stocked in together, fall back to
+    // compareProductNames so they stay grouped in XL/L/M/S/XS order);
+    // products never stocked in through this system are pushed furthest
+    // right, sorted the same way among themselves.
     const columns = [...columnSet].sort((a, b) => {
       const dateA = lastStockInDate.get(a);
       const dateB = lastStockInDate.get(b);
-      if (dateA && dateB) return dateB.localeCompare(dateA) || compareProductNames(a, b);
+      if (dateA && dateB) return dateA.localeCompare(dateB) || compareProductNames(a, b);
       if (dateA) return -1;
       if (dateB) return 1;
       return compareProductNames(a, b);
