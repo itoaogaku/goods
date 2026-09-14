@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ProductNameInput } from "@/components/dashboard/product-name-input";
 import { LEDGER_CONFIG, MANUAL_ENTRY_EVENT_TYPES } from "@/lib/ledger";
 import { useProductPrices } from "@/lib/use-product-prices";
+import { formatJPY } from "@/lib/utils";
 import type { EventType, Ledger, Location, OrderStatus, ProductPriceEntry } from "@/lib/types";
 
 const STATUS_OPTIONS: OrderStatus[] = ["未発送", "発送済", "キャンセル", "返金"];
@@ -61,6 +62,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const isCoopWholesale = ledger === "trackteam" && eventType === "卸し";
   const coopUnitPrice = listPrice === "" ? 0 : Math.round(Number(listPrice) * 0.9);
   const effectiveUnitPrice = isCoopWholesale ? coopUnitPrice : Number(unitPrice) || 0;
+  const totalAmount = (Number(quantity) || 0) * effectiveUnitPrice;
 
   // Adjusting state during render (not in an effect) when 商品名/種別
   // change, per https://react.dev/learn/you-might-not-need-an-effect —
@@ -208,6 +210,9 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
           <Input value={memo} onChange={(e) => setMemo(e.target.value)} />
         </label>
       </div>
+      <p className="text-sm text-muted-foreground">
+        合計金額（単価×数量）: <span className="font-medium text-foreground">{formatJPY(totalAmount)}</span>
+      </p>
       {message && (
         <p className={`text-sm ${message.type === "error" ? "text-destructive" : "text-emerald-600"}`}>
           {message.text}
