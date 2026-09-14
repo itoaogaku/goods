@@ -268,6 +268,9 @@ const OUTBOUND_TYPES: EventType[] = ["通常販売", "関係者価格販売", "�
 export async function computeStockBalances(ledger: Ledger): Promise<StockBalanceEntry[]> {
   const events = await queryAllEvents(ledger);
   const balances = new Map<string, StockBalanceEntry>();
+  // Earliest 入庫(在庫追加) date per product (regardless of location) — a
+  // later repeat stock-in doesn't move it, only the very first one counts.
+  const firstStockInByProduct = new Map<string, string>();
 
   function add(productName: string, location: Location, delta: number, purchasedDelta = 0) {
     const key = `${productName}__${location}`;
@@ -276,7 +279,7 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
       existing.quantity += delta;
       existing.purchasedQuantity += purchasedDelta;
     } else {
-      balances.set(key, { productName, location, quantity: delta, purchasedQuantity: purchasedDelta });
+      balances.set(key, { productName, location, quantity: delta, purchasedQuantity: purchasedDelta, firstStockInDate: null });
     }
   }
 
@@ -286,6 +289,10 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
 
     if (STOCK_IN_TYPES.includes(event.eventType)) {
       add(event.productName, event.location, event.quantity, event.quantity);
+      const prevFirst = firstStockInByProduct.get(event.productName);
+      if (!prevFirst || event.occurredAt < prevFirst) {
+        firstStockInByProduct.set(event.productName, event.occurredAt);
+      }
     } else if (OUTBOUND_TYPES.includes(event.eventType)) {
       add(event.productName, event.location, -event.quantity);
     } else if (event.eventType === "拠点間移動" && event.destinationLocation) {
@@ -294,6 +301,10 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
     } else if (event.eventType === "棚卸調整") {
       add(event.productName, event.location, event.quantity);
     }
+  }
+
+  for (const entry of balances.values()) {
+    entry.firstStockInDate = firstStockInByProduct.get(entry.productName) ?? null;
   }
 
   return [...balances.values()].sort(

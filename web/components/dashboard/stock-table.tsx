@@ -41,13 +41,26 @@ export function StockTable({ ledger, refreshKey }: StockTableProps) {
   }, [ledger, refreshKey]);
 
   // Pivot to one row per product with a column per location.
-  const products = [...new Set((balances ?? []).map((b) => b.productName))].sort(compareProductNames);
   const byProductLocation = new Map<string, number>();
   const purchasedByProduct = new Map<string, number>();
+  const firstStockInByProduct = new Map<string, string | null>();
   for (const b of balances ?? []) {
     byProductLocation.set(`${b.productName}__${b.location}`, b.quantity);
     purchasedByProduct.set(b.productName, (purchasedByProduct.get(b.productName) ?? 0) + b.purchasedQuantity);
+    firstStockInByProduct.set(b.productName, b.firstStockInDate);
   }
+
+  // Same ordering as 顧客別集計: products with a first 在庫追加 come first,
+  // oldest first, ties broken by compareProductNames (so XL/L/M/S/XS size
+  // variants stay grouped); products never stocked in fall to the end.
+  const products = [...new Set((balances ?? []).map((b) => b.productName))].sort((a, b) => {
+    const dateA = firstStockInByProduct.get(a);
+    const dateB = firstStockInByProduct.get(b);
+    if (dateA && dateB) return dateA.localeCompare(dateB) || compareProductNames(a, b);
+    if (dateA) return -1;
+    if (dateB) return 1;
+    return compareProductNames(a, b);
+  });
 
   return (
     <Card>

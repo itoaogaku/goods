@@ -91,6 +91,8 @@ export interface StockBalanceEntry {
   quantity: number;
   /** Cumulative 入庫 quantity only (not netted against sales/adjustments), for reference alongside the net `quantity`. */
   purchasedQuantity: number;
+  /** This product's earliest 入庫 date across all locations, or null if it has never been stocked in. */
+  firstStockInDate: string | null;
 }
 
 /** This row's effect on one product's stock, and the running balance right after it. */
