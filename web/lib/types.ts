@@ -89,6 +89,8 @@ export interface StockBalanceEntry {
   productName: string;
   location: Location;
   quantity: number;
+  /** Cumulative 入庫 quantity only (not netted against sales/adjustments), for reference alongside the net `quantity`. */
+  purchasedQuantity: number;
 }
 
 /** This row's effect on one product's stock, and the running balance right after it. */

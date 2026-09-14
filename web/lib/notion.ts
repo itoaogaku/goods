@@ -269,19 +269,20 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
   const events = await queryAllEvents(ledger);
   const balances = new Map<string, StockBalanceEntry>();
 
-  function add(productName: string, location: Location, delta: number) {
+  function add(productName: string, location: Location, delta: number, purchasedDelta = 0) {
     const key = `${productName}__${location}`;
     const existing = balances.get(key);
     if (existing) {
       existing.quantity += delta;
+      existing.purchasedQuantity += purchasedDelta;
     } else {
-      balances.set(key, { productName, location, quantity: delta });
+      balances.set(key, { productName, location, quantity: delta, purchasedQuantity: purchasedDelta });
     }
   }
 
   for (const event of events) {
     if (STOCK_IN_TYPES.includes(event.eventType)) {
-      add(event.productName, event.location, event.quantity);
+      add(event.productName, event.location, event.quantity, event.quantity);
     } else if (OUTBOUND_TYPES.includes(event.eventType)) {
       add(event.productName, event.location, -event.quantity);
     } else if (event.eventType === "拠点間移動" && event.destinationLocation) {
