@@ -6,12 +6,32 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductNameInput } from "@/components/dashboard/product-name-input";
 import { LEDGER_CONFIG, MANUAL_ENTRY_EVENT_TYPES } from "@/lib/ledger";
-import type { EventType, Ledger, Location, OrderStatus } from "@/lib/types";
+import { useProductPrices } from "@/lib/use-product-prices";
+import type { EventType, Ledger, Location, OrderStatus, ProductPriceEntry } from "@/lib/types";
 
 const STATUS_OPTIONS: OrderStatus[] = ["未発送", "発送済", "キャンセル", "返金"];
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+// Which 料金表一覧 price column corresponds to each sale-like 種別, for
+// auto-filling 単価 once 商品名 and 種別 are both chosen. null means "don't
+// auto-fill" (棚卸調整 isn't a sale, and 卸し on 陸上部 has its own 定価 ->
+// 90%計算 flow — see isCoopWholesale below).
+function priceForEventType(entry: ProductPriceEntry, type: EventType): number | null {
+  switch (type) {
+    case "通常販売":
+      return entry.listPrice;
+    case "関係者価格販売":
+      return entry.insiderPrice;
+    case "卸し":
+      return entry.wholesalePrice;
+    case "プレゼント":
+      return 0;
+    default:
+      return null;
+  }
 }
 
 interface ManualEntryFormProps {
@@ -41,6 +61,22 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const isCoopWholesale = ledger === "trackteam" && eventType === "卸し";
   const coopUnitPrice = listPrice === "" ? 0 : Math.round(Number(listPrice) * 0.9);
   const effectiveUnitPrice = isCoopWholesale ? coopUnitPrice : Number(unitPrice) || 0;
+
+  // Adjusting state during render (not in an effect) when 商品名/種別
+  // change, per https://react.dev/learn/you-might-not-need-an-effect —
+  // this re-derives 単価 exactly when either input changes, while still
+  // letting the user freely edit it afterward without it snapping back.
+  const prices = useProductPrices();
+  const [lastAutoFillKey, setLastAutoFillKey] = useState("");
+  const autoFillKey = `${productName}|||${eventType}`;
+  if (autoFillKey !== lastAutoFillKey) {
+    setLastAutoFillKey(autoFillKey);
+    if (!isCoopWholesale) {
+      const entry = prices.find((p) => p.productName === productName);
+      const autoPrice = entry ? priceForEventType(entry, eventType) : null;
+      if (autoPrice !== null) setUnitPrice(String(autoPrice));
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -145,6 +181,9 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
           <label className="flex flex-col gap-1 text-sm">
             単価
             <Input type="number" min={0} value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
+            <span className="text-xs text-muted-foreground">
+              商品名・種別を選ぶと料金表から自動入力されます（必要に応じて変更できます）
+            </span>
           </label>
         )}
       </div>
