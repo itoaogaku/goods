@@ -99,7 +99,16 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         {data && (
-          <div className="overflow-x-auto rounded-md border border-border">
+          // Table's own wrapper div (components/ui/table.tsx) also sets
+          // overflow-auto, which per the CSS spec makes IT a scroll
+          // container too regardless of whether it ever actually needs to
+          // scroll. With no height of its own it never does, so it just
+          // silently absorbs "sticky" positioning without ever moving —
+          // exactly the "works on desktop, header scrolls away on iPhone"
+          // bug reported. [&>div]:overflow-visible cancels that inner
+          // scroll container so this div (the one with a real bounded
+          // height) is unambiguously the one sticky positioning refers to.
+          <div className="max-h-[70vh] overflow-auto rounded-md border border-border [&>div]:overflow-visible">
             <Table>
               <TableHeader>
                 <TableRow>
