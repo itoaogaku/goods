@@ -23,12 +23,30 @@ interface WixVariant {
   variant?: { priceData?: { price?: number | string | null } };
 }
 
+/**
+ * An option configured on the product (per @wix/auto_sdk_stores_products'
+ * Product.productOptions), independent of manageVariants — e.g. products
+ * registered as separate Wix listings per color (see toSuffix below) still
+ * often carry a "Color" option here with a single fixed choice, purely for
+ * display/filtering. Wix includes this in an order's descriptionLines too
+ * (confirmed from a real order: "Color:クリーム | Size:M"), which is what
+ * lib/wix.ts's withVariantSuffix already reads — this mirrors that on the
+ * catalog side so a price-list entry's name matches what a sale of it gets
+ * recorded as.
+ */
+interface WixProductOption {
+  name?: string;
+  choices?: Array<{ value?: string }>;
+}
+
 interface WixProduct {
   id?: string;
   name?: string | null;
   priceData?: { price?: number | string | null };
   /** Present (non-empty) only when the product has manageVariants enabled. */
   variants?: WixVariant[];
+  /** Present regardless of manageVariants — see WixProductOption above. */
+  productOptions?: WixProductOption[];
 }
 
 interface WixProductsQueryResponse {
@@ -48,23 +66,44 @@ export interface WixProductItem {
 }
 
 /**
- * One product with manageVariants enabled (e.g. size/color chosen from a
- * dropdown on the product page, rather than separate product listings)
- * expands into one WixProductItem per variant — same 商品名 convention as
- * lib/wix.ts uses for order lines, so a sale and its matching price-list
- * row/stock-in entry read as the same product string. wixProductId for a
- * variant is `{productId}.{variantId}`, matching Wix's own "store variant
- * ID" format, so it stays stable even if the product is renamed.
+ * Builds the " / A / B" suffix for a product from its productOptions, in
+ * their configured order (matching the order Wix lists them in an order's
+ * descriptionLines). For an option that manageVariants actually varies
+ * (e.g. "Size"), use the specific variant's own choice; for a fixed
+ * descriptive option not driven by a variant (e.g. "Color" on a product
+ * that's really just one color — see WixProductOption above), fall back to
+ * its single configured choice.
+ */
+function toSuffix(product: WixProduct, variantChoices?: Record<string, string>): string {
+  const parts = (product.productOptions ?? [])
+    .map((option) => (option.name ? (variantChoices?.[option.name] ?? option.choices?.[0]?.value) : undefined))
+    .filter((v): v is string => !!v);
+  return parts.join(" / ");
+}
+
+function withSuffix(baseName: string, suffix: string): string {
+  return suffix ? `${baseName} / ${suffix}` : baseName;
+}
+
+/**
+ * One product with manageVariants enabled (e.g. size chosen from a dropdown
+ * on the product page, rather than separate product listings) expands into
+ * one WixProductItem per variant — same 商品名 convention as lib/wix.ts uses
+ * for order lines, so a sale and its matching price-list row/stock-in entry
+ * read as the same product string. wixProductId for a variant is
+ * `{productId}.{variantId}`, matching Wix's own "store variant ID" format,
+ * so it stays stable even if the product is renamed.
  */
 function toProductItems(product: WixProduct): WixProductItem[] {
   if (!product.id) return [];
   const variants = product.variants ?? [];
+  const name = product.name ?? "(商品名不明)";
 
   if (variants.length === 0) {
     return [
       {
         wixProductId: product.id,
-        name: product.name ?? "(商品名不明)",
+        name: withSuffix(name, toSuffix(product)),
         listPrice: Number(product.priceData?.price ?? 0),
       },
     ];
@@ -72,14 +111,11 @@ function toProductItems(product: WixProduct): WixProductItem[] {
 
   return variants
     .filter((v): v is WixVariant & { id: string } => !!v.id)
-    .map((v) => {
-      const suffix = Object.values(v.choices ?? {}).join(" / ");
-      return {
-        wixProductId: `${product.id}.${v.id}`,
-        name: suffix ? `${product.name ?? "(商品名不明)"} / ${suffix}` : product.name ?? "(商品名不明)",
-        listPrice: Number(v.variant?.priceData?.price ?? product.priceData?.price ?? 0),
-      };
-    });
+    .map((v) => ({
+      wixProductId: `${product.id}.${v.id}`,
+      name: withSuffix(name, toSuffix(product, v.choices)),
+      listPrice: Number(v.variant?.priceData?.price ?? product.priceData?.price ?? 0),
+    }));
 }
 
 async function fetchProductsPage(
