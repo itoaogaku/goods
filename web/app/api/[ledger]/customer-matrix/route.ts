@@ -54,9 +54,11 @@ export async function GET(
     const rowsByTransaction = new Map<string, CustomerMatrixRow>();
     const columnSet = new Set<string>();
     const runningBalance = new Map<string, number>();
-    // Latest 入庫(在庫追加) date per product, so columns can be ordered by
-    // "most recently restocked first" instead of alphabetically.
-    const lastStockInDate = new Map<string, string>();
+    // Earliest 入庫(在庫追加) date per product, so columns can be ordered by
+    // "first ever restocked" instead of alphabetically — a later repeat
+    // stock-in of the same product doesn't move its column, only the very
+    // first one sets its position.
+    const firstStockInDate = new Map<string, string>();
 
     function touchRow(record: (typeof records)[number]) {
       let row = rowsByTransaction.get(record.transactionId);
@@ -106,9 +108,9 @@ export async function GET(
         touchRow(record).shippingRevenue += record.totalAmount;
       } else if (record.eventType === "入庫") {
         applyDelta(touchRow(record), record.productName, record.quantity);
-        const prevStockIn = lastStockInDate.get(record.productName);
-        if (!prevStockIn || record.occurredAt > prevStockIn) {
-          lastStockInDate.set(record.productName, record.occurredAt);
+        const prevStockIn = firstStockInDate.get(record.productName);
+        if (!prevStockIn || record.occurredAt < prevStockIn) {
+          firstStockInDate.set(record.productName, record.occurredAt);
         }
       } else {
         const row = touchRow(record);
@@ -121,15 +123,16 @@ export async function GET(
       row.total = row.productRevenue + row.shippingRevenue;
     }
 
-    // Products restocked at least once come first, oldest-restocked-first
-    // (leftmost = earliest 在庫追加, getting newer to the right; same-date
-    // ties, e.g. every size of one color stocked in together, fall back to
-    // compareProductNames so they stay grouped in XL/L/M/S/XS order);
-    // products never stocked in through this system are pushed furthest
-    // right, sorted the same way among themselves.
+    // Products restocked at least once come first, ordered by each
+    // product's FIRST-EVER 在庫追加 date (leftmost = earliest; a later
+    // repeat stock-in of the same product doesn't reshuffle it — same-date
+    // ties, e.g. every size of one color first stocked in together, fall
+    // back to compareProductNames so they stay grouped in XL/L/M/S/XS
+    // order); products never stocked in through this system are pushed
+    // furthest right, sorted the same way among themselves.
     const columns = [...columnSet].sort((a, b) => {
-      const dateA = lastStockInDate.get(a);
-      const dateB = lastStockInDate.get(b);
+      const dateA = firstStockInDate.get(a);
+      const dateB = firstStockInDate.get(b);
       if (dateA && dateB) return dateA.localeCompare(dateB) || compareProductNames(a, b);
       if (dateA) return -1;
       if (dateB) return 1;
