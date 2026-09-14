@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Table,
   TableBody,
@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LEDGER_CONFIG } from "@/lib/ledger";
 import { cn, formatJPY, formatNumber } from "@/lib/utils";
@@ -45,6 +46,9 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
   const [data, setData] = useState<CustomerMatrixResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [jumpDate, setJumpDate] = useState("");
+  const [jumpMessage, setJumpMessage] = useState<string | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +74,21 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
     };
   }, [ledger, location]);
 
+  // Rows are newest-first, so the first row whose date is on-or-before the
+  // requested date is the closest match to "jump to around this date";
+  // falling back to the oldest row covers a date older than all of them.
+  function handleJump() {
+    if (!data || !jumpDate) return;
+    const match = data.rows.find((r) => r.orderDate.slice(0, 10) <= jumpDate) ?? data.rows[data.rows.length - 1];
+    const el = match ? rowRefs.current.get(match.transactionId) : undefined;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setJumpMessage(null);
+    } else {
+      setJumpMessage("該当する行が見つかりませんでした");
+    }
+  }
+
   return (
     <Card>
       <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -94,6 +113,22 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
         <p className="text-sm text-muted-foreground">
           {location}の在庫・注文のみを表示しています。新しい行が一番上に表示されます。各商品列には、その行での増減（注文は−、在庫追加・移動入庫は+）と、その時点での{location}の残り在庫数を表示します。横にスクロールすると全商品を確認できます(取引ID・名前・日時の列とヘッダー行は固定表示されます)。
         </p>
+
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label className="flex items-center gap-2">
+            日付で移動
+            <Input
+              type="date"
+              value={jumpDate}
+              onChange={(e) => setJumpDate(e.target.value)}
+              className="w-auto"
+            />
+          </label>
+          <Button type="button" size="sm" variant="outline" onClick={handleJump} disabled={!jumpDate}>
+            移動
+          </Button>
+          {jumpMessage && <span className="text-muted-foreground">{jumpMessage}</span>}
+        </div>
 
         {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -134,7 +169,14 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
               </TableHeader>
               <TableBody>
                 {data.rows.map((row) => (
-                  <TableRow key={row.transactionId} className={ROW_TINT[row.rowKind]}>
+                  <TableRow
+                    key={row.transactionId}
+                    ref={(el) => {
+                      if (el) rowRefs.current.set(row.transactionId, el);
+                      else rowRefs.current.delete(row.transactionId);
+                    }}
+                    className={ROW_TINT[row.rowKind]}
+                  >
                     <TableCell
                       className={cn("sticky left-0 z-10 w-24 font-mono text-xs", STICKY_CELL_BG[row.rowKind])}
                     >
