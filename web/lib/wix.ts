@@ -60,11 +60,24 @@ interface WixOrderLineItem {
   }>;
 }
 
+// Wix's descriptionLine shape (plainText/colorInfo + a name label) is used
+// for both genuine option selections (size, color — always a short token)
+// and unrelated free-text notes on the order (e.g. a seller-added shipping
+// note like "4月中の発送を予定しております。"), with no field to tell the
+// two apart. A real option value is never this long and never contains
+// full-width sentence punctuation, so this filters out the notes while
+// keeping every size/color value actually seen in production.
+const MAX_OPTION_VALUE_LENGTH = 20;
+
+function isLikelyOptionValue(value: string): boolean {
+  return value.length <= MAX_OPTION_VALUE_LENGTH && !value.includes("。") && !value.includes("、");
+}
+
 /** "アディダスパーカー" + [{plainText:"L"}] -> "アディダスパーカー / L". */
 function withVariantSuffix(baseName: string, item: WixOrderLineItem): string {
   const parts = (item.descriptionLines ?? [])
     .map((line) => line.plainText?.original ?? line.colorInfo?.original)
-    .filter((v): v is string => !!v);
+    .filter((v): v is string => !!v && isLikelyOptionValue(v));
   return parts.length > 0 ? `${baseName} / ${parts.join(" / ")}` : baseName;
 }
 
