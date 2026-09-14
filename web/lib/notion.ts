@@ -272,15 +272,20 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
   // later repeat stock-in doesn't move it, only the very first one counts.
   const firstStockInByProduct = new Map<string, string>();
 
-  function add(productName: string, location: Location, delta: number, purchasedDelta = 0) {
+  function ensureEntry(productName: string, location: Location): StockBalanceEntry {
     const key = `${productName}__${location}`;
-    const existing = balances.get(key);
-    if (existing) {
-      existing.quantity += delta;
-      existing.purchasedQuantity += purchasedDelta;
-    } else {
-      balances.set(key, { productName, location, quantity: delta, purchasedQuantity: purchasedDelta, firstStockInDate: null });
+    let entry = balances.get(key);
+    if (!entry) {
+      entry = { productName, location, quantity: 0, purchasedQuantity: 0, firstStockInDate: null, adjustmentQuantity: 0 };
+      balances.set(key, entry);
     }
+    return entry;
+  }
+
+  function add(productName: string, location: Location, delta: number, purchasedDelta = 0) {
+    const entry = ensureEntry(productName, location);
+    entry.quantity += delta;
+    entry.purchasedQuantity += purchasedDelta;
   }
 
   for (const event of events) {
@@ -300,6 +305,9 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
       add(event.productName, event.destinationLocation, event.quantity);
     } else if (event.eventType === "棚卸調整") {
       add(event.productName, event.location, event.quantity);
+    } else if (event.eventType === "在庫調整") {
+      // 実際の在庫数(quantity)には触れず、別枠の集計にのみ積み上げる。
+      ensureEntry(event.productName, event.location).adjustmentQuantity += event.quantity;
     }
   }
 

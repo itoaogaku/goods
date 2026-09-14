@@ -43,10 +43,12 @@ export function StockTable({ ledger, refreshKey }: StockTableProps) {
   // Pivot to one row per product with a column per location.
   const byProductLocation = new Map<string, number>();
   const purchasedByProduct = new Map<string, number>();
+  const adjustmentByProduct = new Map<string, number>();
   const firstStockInByProduct = new Map<string, string | null>();
   for (const b of balances ?? []) {
     byProductLocation.set(`${b.productName}__${b.location}`, b.quantity);
     purchasedByProduct.set(b.productName, (purchasedByProduct.get(b.productName) ?? 0) + b.purchasedQuantity);
+    adjustmentByProduct.set(b.productName, (adjustmentByProduct.get(b.productName) ?? 0) + b.adjustmentQuantity);
     firstStockInByProduct.set(b.productName, b.firstStockInDate);
   }
 
@@ -75,6 +77,7 @@ export function StockTable({ ledger, refreshKey }: StockTableProps) {
               <TableRow>
                 <TableHead>商品名</TableHead>
                 <TableHead className="text-right">仕入れ数</TableHead>
+                <TableHead className="text-right">在庫調整</TableHead>
                 {config.locations.map((loc) => (
                   <TableHead key={loc} className="text-right">
                     {loc}
@@ -95,6 +98,14 @@ export function StockTable({ ledger, refreshKey }: StockTableProps) {
                     <TableCell className="text-right tabular-nums text-muted-foreground">
                       {formatNumber(purchasedByProduct.get(product) ?? 0)}
                     </TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {(() => {
+                        const adj = adjustmentByProduct.get(product) ?? 0;
+                        if (adj < 0) return <Badge variant="destructive">{formatNumber(adj)}</Badge>;
+                        if (adj > 0) return <span className="text-emerald-600">{`+${formatNumber(adj)}`}</span>;
+                        return <span className="text-muted-foreground">{formatNumber(adj)}</span>;
+                      })()}
+                    </TableCell>
                     {config.locations.map((loc) => {
                       const qty = byProductLocation.get(`${product}__${loc}`) ?? 0;
                       return (
@@ -112,7 +123,7 @@ export function StockTable({ ledger, refreshKey }: StockTableProps) {
               {balances && products.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={config.locations.length + (config.locations.length > 1 ? 3 : 2)}
+                    colSpan={config.locations.length + (config.locations.length > 1 ? 4 : 3)}
                     className="py-8 text-center text-muted-foreground"
                   >
                     在庫データがありません。「在庫登録」から入庫を記録してください

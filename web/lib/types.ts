@@ -13,7 +13,8 @@ export type EventType =
   | "プレゼント" // gift, no revenue
   | "拠点間移動" // transfer between locations within the same ledger
   | "卸し" // wholesale to another party (ACC→陸上部, 陸上部→購買会, etc.)
-  | "棚卸調整" // stock count correction, signed quantity
+  | "棚卸調整" // stock count correction, signed quantity — DOES affect the real 在庫 balance
+  | "在庫調整" // separate side-tally, signed quantity — does NOT affect the real 在庫 balance (its own column in 現在庫)
   | "送料" // shipping fee collected on an order (Wix sync only) — no stock impact
   | "経費"; // a business expense (rent, supplies, ...) — no stock impact
 
@@ -93,6 +94,8 @@ export interface StockBalanceEntry {
   purchasedQuantity: number;
   /** This product's earliest 入庫 date across all locations, or null if it has never been stocked in. */
   firstStockInDate: string | null;
+  /** Cumulative 在庫調整 (signed) — a separate side-tally, NOT included in `quantity`. */
+  adjustmentQuantity: number;
 }
 
 /** This row's effect on one product's stock, and the running balance right after it. */
