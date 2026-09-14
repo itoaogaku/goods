@@ -22,6 +22,7 @@ interface ManualEntryBody {
   unitPrice?: number;
   memo?: string;
   status?: OrderStatus;
+  customerName?: string;
 }
 
 export async function POST(
@@ -76,6 +77,7 @@ export async function POST(
       unitPrice,
       memo: body?.memo ?? "",
       status,
+      customerName: body?.customerName?.trim() ?? "",
     });
 
     return jsonWithCors(origin, { ok: true });

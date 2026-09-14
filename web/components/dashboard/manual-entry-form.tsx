@@ -51,6 +51,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const [unitPrice, setUnitPrice] = useState("0");
   const [listPrice, setListPrice] = useState("");
   const [status, setStatus] = useState<OrderStatus>("発送済");
+  const [customerName, setCustomerName] = useState("");
   const [memo, setMemo] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -97,6 +98,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
           quantity: Number(quantity),
           unitPrice: effectiveUnitPrice,
           status,
+          customerName,
           memo,
         }),
       });
@@ -108,6 +110,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       setQuantity("");
       setUnitPrice("0");
       setListPrice("");
+      setCustomerName("");
       setMemo("");
       onSuccess();
     } catch (err) {
@@ -191,6 +194,10 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
+          顧客名（任意）
+          <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm">
           ステータス
           <Select value={status} onValueChange={(v) => setStatus(v as OrderStatus)}>
             <SelectTrigger>
@@ -205,6 +212,8 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
             </SelectContent>
           </Select>
         </label>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
           備考{needsDestinationMemo && "（卸し先・贈呈先など）"}
           <Input value={memo} onChange={(e) => setMemo(e.target.value)} />
