@@ -14,9 +14,19 @@ const WIX_ORDERS_SEARCH_URL = "https://www.wixapis.com/ecom/v1/orders/search";
 // 発送済み/未発送 is read straight from Wix's own fulfillmentStatus, so
 // marking an order fulfilled in Wix is reflected here on the next sync
 // (this module's fetchWixOrderLines is re-fetched and diffed against
-// Notion on every run — see lib/wix-sync.ts). paymentStatus is checked
-// too, since cancellation/refund is a fact fulfillmentStatus alone won't
-// carry, and should take priority over a raw fulfillment claim.
+// Notion on every run — see lib/wix-sync.ts).
+//
+// Cancellation and refund are checked too, and take priority over a raw
+// fulfillment claim, but from TWO separate Wix fields — confirmed via the
+// @wix/auto_sdk_ecom_orders type definitions (dev.wix.com blocked from
+// this sandbox, same as elsewhere in this file):
+// - order.status (NOT paymentStatus) is the order-level "CANCELED" flag —
+//   paymentStatus never carries a CANCELED/CANCELLED value, so checking
+//   for it there (as this used to) can never match anything.
+// - order.paymentStatus's refunded value is "FULLY_REFUNDED", not
+//   "REFUNDED" — so that check silently never matched either.
+// Both bugs together meant a cancelled-and-refunded order (visible as two
+// separate badges in Wix's own order list) stayed stuck as 未発送 forever.
 const FULFILLMENT_STATUS_MAP: Record<string, OrderStatus> = {
   FULFILLED: "発送済",
   "FULLY FULFILLED": "発送済",
@@ -26,16 +36,17 @@ const FULFILLMENT_STATUS_MAP: Record<string, OrderStatus> = {
 };
 
 const PAYMENT_STATUS_MAP: Record<string, OrderStatus> = {
-  CANCELED: "キャンセル",
-  CANCELLED: "キャンセル",
-  REFUNDED: "返金",
+  FULLY_REFUNDED: "返金",
   PARTIALLY_REFUNDED: "返金",
 };
 
 function normalizeStatus(
+  orderStatus: string | undefined | null,
   fulfillmentStatus: string | undefined | null,
   paymentStatus: string | undefined | null
 ): OrderStatus {
+  if (orderStatus?.trim().toUpperCase() === "CANCELED") return "キャンセル";
+
   const fromPayment = paymentStatus ? PAYMENT_STATUS_MAP[paymentStatus.trim().toUpperCase()] : undefined;
   if (fromPayment) return fromPayment;
 
@@ -84,6 +95,7 @@ function withVariantSuffix(baseName: string, item: WixOrderLineItem): string {
 interface WixOrder {
   number: string;
   createdDate: string;
+  status?: string;
   fulfillmentStatus?: string;
   paymentStatus?: string;
   lineItems?: WixOrderLineItem[];
@@ -154,7 +166,7 @@ function toCreateEventInputs(page: WixOrdersSearchResponse, options: WixSyncOpti
   const lines: CreateEventInput[] = [];
 
   for (const order of page.orders) {
-    const status = normalizeStatus(order.fulfillmentStatus, order.paymentStatus);
+    const status = normalizeStatus(order.status, order.fulfillmentStatus, order.paymentStatus);
     const customerName = buyerName(order);
     (order.lineItems ?? []).forEach((item, index) => {
       const quantity = item.quantity ?? 0;
