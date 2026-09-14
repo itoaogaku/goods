@@ -88,6 +88,9 @@ export async function GET(
     }
 
     for (const record of records) {
+      // キャンセルされた取引は実際には成立していないので在庫・売上を動かさない。
+      if (record.status === "キャンセル") continue;
+
       if (record.eventType === "拠点間移動") {
         if (record.location === location) {
           applyDelta(touchRow(record), record.productName, -record.quantity);

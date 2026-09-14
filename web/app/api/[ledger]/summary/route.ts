@@ -57,6 +57,9 @@ export async function GET(
     let currentMonthRevenue = 0;
 
     for (const record of records) {
+      // キャンセルされた取引は実際には成立していないので売上・経費に含めない。
+      if (record.status === "キャンセル") continue;
+
       if (record.eventType === "送料") {
         shippingRevenue += record.totalAmount;
         continue;
