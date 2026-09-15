@@ -93,6 +93,8 @@ export interface StockBalanceEntry {
   purchasedQuantity: number;
   /** This product's earliest 入庫 date across all locations, or null if it has never been stocked in. */
   firstStockInDate: string | null;
+  /** Cumulative 棚卸調整 (signed), for reference alongside the net `quantity` — same idea as `purchasedQuantity`, it does NOT change how `quantity` itself is computed (棚卸調整 is already folded into `quantity`). */
+  adjustmentQuantity: number;
 }
 
 /** This row's effect on one product's stock, and the running balance right after it. */
