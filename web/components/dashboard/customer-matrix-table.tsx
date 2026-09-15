@@ -24,12 +24,14 @@ const ROW_LABEL: Record<CustomerMatrixResponse["rows"][number]["rowKind"], strin
   order: "―",
   "stock-in": "（在庫追加）",
   transfer: "（拠点間移動）",
+  adjustment: "（棚卸調整）",
 };
 
 const ROW_TINT: Record<CustomerMatrixResponse["rows"][number]["rowKind"], string | undefined> = {
   order: undefined,
   "stock-in": "bg-emerald-500/5",
   transfer: "bg-amber-500/5",
+  adjustment: "bg-sky-500/5",
 };
 
 // 左側3列（取引ID・名前・日時）を横スクロール時にも固定表示するため、
@@ -38,6 +40,7 @@ const STICKY_CELL_BG: Record<CustomerMatrixResponse["rows"][number]["rowKind"], 
   order: "bg-background",
   "stock-in": "bg-emerald-50",
   transfer: "bg-amber-50",
+  adjustment: "bg-sky-50",
 };
 
 export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
@@ -111,7 +114,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          {location}の在庫・注文のみを表示しています。新しい行が一番上に表示されます。各商品列には、その行での増減（注文は−、在庫追加・移動入庫は+）と、その時点での{location}の残り在庫数を表示します。横にスクロールすると全商品を確認できます(取引ID・名前・日時の列とヘッダー行は固定表示されます)。
+          {location}の在庫・注文のみを表示しています。新しい行が一番上に表示されます。各商品列には、その行での増減（注文は−、在庫追加・移動入庫は+、棚卸調整は+/−）と、その時点での{location}の残り在庫数を表示します。横にスクロールすると全商品を確認できます(取引ID・名前・日時の列とヘッダー行は固定表示されます)。
         </p>
 
         <div className="flex flex-wrap items-center gap-2 text-sm">

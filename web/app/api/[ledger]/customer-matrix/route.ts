@@ -14,8 +14,9 @@ export async function OPTIONS(request: NextRequest) {
   return preflightResponse(request.headers.get("origin"));
 }
 
-// One row per order (取引ID), per 入庫 (stock-in), or per 拠点間移動 event
-// that touches the requested location, one column per distinct product.
+// One row per order (取引ID), per 入庫 (stock-in), per 拠点間移動, or per
+// 棚卸調整 event that touches the requested location, one column per
+// distinct product.
 // 送料 rows fold into shippingRevenue instead of becoming a "product"
 // column. Balances are scoped to a single location (?location=町田, say)
 // — 水上村 and 町田 are tracked completely separately since almost every
@@ -48,7 +49,7 @@ export async function GET(
     // both legs — losing stock at the source, gaining it at the destination
     // — can be evaluated against the requested location below.
     const records = await queryAllEvents(ledger, {
-      eventTypes: [...SALE_EVENT_TYPES, "送料", "入庫", "拠点間移動"],
+      eventTypes: [...SALE_EVENT_TYPES, "送料", "入庫", "拠点間移動", "棚卸調整"],
     });
 
     const rowsByTransaction = new Map<string, CustomerMatrixRow>();
@@ -67,7 +68,14 @@ export async function GET(
           transactionId: record.transactionId,
           customerName: record.customerName,
           orderDate: record.occurredAt,
-          rowKind: record.eventType === "入庫" ? "stock-in" : record.eventType === "拠点間移動" ? "transfer" : "order",
+          rowKind:
+            record.eventType === "入庫"
+              ? "stock-in"
+              : record.eventType === "拠点間移動"
+                ? "transfer"
+                : record.eventType === "棚卸調整"
+                  ? "adjustment"
+                  : "order",
           products: {},
           productRevenue: 0,
           shippingRevenue: 0,
@@ -112,6 +120,9 @@ export async function GET(
         if (!prevStockIn || record.occurredAt < prevStockIn) {
           firstStockInDate.set(record.productName, record.occurredAt);
         }
+      } else if (record.eventType === "棚卸調整") {
+        // quantity is already signed (+/-), and doesn't affect revenue.
+        applyDelta(touchRow(record), record.productName, record.quantity);
       } else {
         const row = touchRow(record);
         applyDelta(row, record.productName, -record.quantity);

@@ -105,13 +105,13 @@ export interface CustomerMatrixCell {
   balance: number;
 }
 
-/** One order's, 入庫's, or 拠点間移動's row in the customer×商品 pivot table (see /api/[ledger]/customer-matrix). */
+/** One order's, 入庫's, 拠点間移動's, or 棚卸調整's row in the customer×商品 pivot table (see /api/[ledger]/customer-matrix). */
 export interface CustomerMatrixRow {
   transactionId: string;
   customerName: string;
   orderDate: string;
-  /** "order" rows have a customerName; stock-in/transfer rows generally don't. */
-  rowKind: "order" | "stock-in" | "transfer";
+  /** "order" rows have a customerName; stock-in/transfer/adjustment rows generally don't. */
+  rowKind: "order" | "stock-in" | "transfer" | "adjustment";
   /** Keyed by productName — only products actually touched by this row are present. */
   products: Record<string, CustomerMatrixCell>;
   productRevenue: number;
