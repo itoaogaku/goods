@@ -129,8 +129,8 @@ export interface CustomerMatrixResponse {
 
 /**
  * One product's row in the 料金表一覧 (price list). 商品名/定価 are kept in
- * sync automatically from Wix's product catalog; 原価/関係者価格/陸上部卸値
- * have no Wix equivalent and are entered by hand in this app.
+ * sync automatically from Wix's product catalog; 原価/関係者価格/陸上部卸値/
+ * 購買会卸値 have no Wix equivalent and are entered by hand in this app.
  */
 export interface ProductPriceEntry {
   pageId: string;
@@ -140,4 +140,5 @@ export interface ProductPriceEntry {
   costPrice: number | null;
   insiderPrice: number | null;
   wholesalePrice: number | null;
+  coopWholesalePrice: number | null;
 }

@@ -68,7 +68,7 @@ export function PriceListTable() {
 
   async function handlePriceChange(
     pageId: string,
-    field: "costPrice" | "insiderPrice" | "wholesalePrice",
+    field: "costPrice" | "insiderPrice" | "wholesalePrice" | "coopWholesalePrice",
     rawValue: string
   ) {
     const value = rawValue === "" ? null : Number(rawValue);
@@ -89,6 +89,7 @@ export function PriceListTable() {
           costPrice: product.costPrice,
           insiderPrice: product.insiderPrice,
           wholesalePrice: product.wholesalePrice,
+          coopWholesalePrice: product.coopWholesalePrice,
         }),
       });
       if (!res.ok) {
@@ -109,7 +110,7 @@ export function PriceListTable() {
       const res = await fetch("/api/products/backfill-wholesale-price", { method: "POST" });
       const body = await res.json();
       if (!res.ok) throw new Error(body.detail ?? body.error ?? `HTTP ${res.status}`);
-      setBackfillMessage(`${body.filled}件の陸上部卸値を定価の13%オフで入力しました`);
+      setBackfillMessage(`${body.filled}件の陸上部卸値・購買会卸値の空欄を入力しました`);
       await load();
     } catch (err) {
       setBackfillMessage(err instanceof Error ? err.message : "一括入力に失敗しました");
@@ -118,7 +119,10 @@ export function PriceListTable() {
     }
   }
 
-  function renderPriceCell(product: ProductPriceEntry, field: "costPrice" | "insiderPrice" | "wholesalePrice") {
+  function renderPriceCell(
+    product: ProductPriceEntry,
+    field: "costPrice" | "insiderPrice" | "wholesalePrice" | "coopWholesalePrice"
+  ) {
     if (!editing) {
       const value = product[field];
       return <span className="tabular-nums">{value === null ? "―" : formatJPY(value)}</span>;
@@ -153,12 +157,12 @@ export function PriceListTable() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          商品名と定価はWixの商品登録から自動で反映されます。原価・関係者価格・陸上部卸値は誤入力を防ぐため通常は編集できません。変更するときは「編集する」を押してください（入力欄から離れると自動保存されます）。陸上部卸値は新規商品の登録時、定価の13%オフが自動で入力されます。
+          商品名と定価はWixの商品登録から自動で反映されます。原価・関係者価格・陸上部卸値・購買会卸値は誤入力を防ぐため通常は編集できません。変更するときは「編集する」を押してください（入力欄から離れると自動保存されます）。新規商品の登録時、陸上部卸値は定価の13%オフ、購買会卸値は定価の10%オフが自動で入力されます。
         </p>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={handleBackfillWholesale} disabled={backfilling}>
-            {backfilling ? "入力中…" : "陸上部卸値の空欄を定価の13%オフで一括入力"}
+            {backfilling ? "入力中…" : "陸上部卸値・購買会卸値の空欄を一括入力"}
           </Button>
           {backfillMessage && <span className="text-sm text-muted-foreground">{backfillMessage}</span>}
         </div>
@@ -176,6 +180,7 @@ export function PriceListTable() {
                   <TableHead className="text-right">原価</TableHead>
                   <TableHead className="text-right">関係者価格</TableHead>
                   <TableHead className="text-right">陸上部卸値</TableHead>
+                  <TableHead className="text-right">購買会卸値</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -186,11 +191,12 @@ export function PriceListTable() {
                     <TableCell className="text-right">{renderPriceCell(product, "costPrice")}</TableCell>
                     <TableCell className="text-right">{renderPriceCell(product, "insiderPrice")}</TableCell>
                     <TableCell className="text-right">{renderPriceCell(product, "wholesalePrice")}</TableCell>
+                    <TableCell className="text-right">{renderPriceCell(product, "coopWholesalePrice")}</TableCell>
                   </TableRow>
                 ))}
                 {products.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                       商品がありません。「今すぐWixと同期」を押してください。
                     </TableCell>
                   </TableRow>

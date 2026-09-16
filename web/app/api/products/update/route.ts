@@ -13,6 +13,7 @@ interface UpdateBody {
   costPrice?: number | null;
   insiderPrice?: number | null;
   wholesalePrice?: number | null;
+  coopWholesalePrice?: number | null;
 }
 
 export async function POST(request: NextRequest) {
@@ -27,6 +28,7 @@ export async function POST(request: NextRequest) {
       costPrice: body?.costPrice,
       insiderPrice: body?.insiderPrice,
       wholesalePrice: body?.wholesalePrice,
+      coopWholesalePrice: body?.coopWholesalePrice,
     });
     return jsonWithCors(origin, { ok: true });
   } catch (error) {

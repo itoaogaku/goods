@@ -61,6 +61,7 @@ export async function syncWixProducts(): Promise<ProductSyncResult> {
             costPrice: null,
             insiderPrice: null,
             wholesalePrice: null,
+            coopWholesalePrice: null,
           });
         } catch (error) {
           errors.push(`${item.wixProductId}: ${error instanceof Error ? error.message : String(error)}`);

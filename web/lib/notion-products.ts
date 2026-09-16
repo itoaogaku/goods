@@ -72,6 +72,7 @@ function pageToProductPriceEntry(page: PageObjectResponse): ProductPriceEntry {
     costPrice: getNullableNumber(p["原価"]),
     insiderPrice: getNullableNumber(p["関係者価格"]),
     wholesalePrice: getNullableNumber(p["陸上部卸値"]),
+    coopWholesalePrice: getNullableNumber(p["購買会卸値"]),
   };
 }
 
@@ -104,7 +105,10 @@ export interface CreateProductInput {
 /** 陸上部卸値 defaults to 13% off 定価 unless hand-edited afterward — see WHOLESALE_DISCOUNT below. */
 const WHOLESALE_DISCOUNT = 0.87;
 
-/** Registers a Wix product not yet in the price list. 関係者価格 is left blank for manual entry; 陸上部卸値 defaults to 定価の13%オフ. */
+/** 購買会卸値 defaults to 定価の90%（購買会が10%マージンを引いた額）unless hand-edited afterward. */
+const COOP_WHOLESALE_DISCOUNT = 0.9;
+
+/** Registers a Wix product not yet in the price list. 関係者価格 is left blank for manual entry; 陸上部卸値/購買会卸値 default to 定価からの割引. */
 export async function createProduct(input: CreateProductInput): Promise<string> {
   const notion = getNotionClient();
   const dataSourceId = await getProductsDataSourceId();
@@ -116,6 +120,7 @@ export async function createProduct(input: CreateProductInput): Promise<string> 
         定価: { number: input.listPrice },
         WixプロダクトID: { rich_text: [{ text: { content: input.wixProductId } }] },
         陸上部卸値: { number: Math.round(input.listPrice * WHOLESALE_DISCOUNT) },
+        購買会卸値: { number: Math.round(input.listPrice * COOP_WHOLESALE_DISCOUNT) },
       },
     })
   );
@@ -139,10 +144,15 @@ export async function updateProductFromWix(
   );
 }
 
-/** Manual edit from the 料金表一覧 UI — 原価・関係者価格・陸上部卸値 only, whichever are provided. */
+/** Manual edit from the 料金表一覧 UI — 原価・関係者価格・陸上部卸値・購買会卸値 only, whichever are provided. */
 export async function updateProductPrices(
   pageId: string,
-  fields: { costPrice?: number | null; insiderPrice?: number | null; wholesalePrice?: number | null }
+  fields: {
+    costPrice?: number | null;
+    insiderPrice?: number | null;
+    wholesalePrice?: number | null;
+    coopWholesalePrice?: number | null;
+  }
 ): Promise<void> {
   const notion = getNotionClient();
   await withNotionRetry(() =>
@@ -152,6 +162,9 @@ export async function updateProductPrices(
         ...(fields.costPrice !== undefined ? { 原価: { number: fields.costPrice } } : {}),
         ...(fields.insiderPrice !== undefined ? { 関係者価格: { number: fields.insiderPrice } } : {}),
         ...(fields.wholesalePrice !== undefined ? { 陸上部卸値: { number: fields.wholesalePrice } } : {}),
+        ...(fields.coopWholesalePrice !== undefined
+          ? { 購買会卸値: { number: fields.coopWholesalePrice } }
+          : {}),
       },
     })
   );
@@ -166,21 +179,27 @@ function sleep(ms: number): Promise<void> {
 const BACKFILL_WRITE_INTERVAL_MS = 350;
 
 /**
- * One-time catch-up for rows registered before 陸上部卸値 had a default —
- * fills only rows where it's still blank, to 定価の13%オフ. Never touches a
- * row that already has a value (hand-entered or previously backfilled).
+ * One-time catch-up for rows registered before 陸上部卸値/購買会卸値 had a
+ * default — fills only whichever of the two is still blank on a given row,
+ * to 定価からの割引. Never touches a value that's already set (hand-entered
+ * or previously backfilled).
  */
 export async function backfillWholesalePrices(): Promise<number> {
   const notion = getNotionClient();
   const entries = await queryAllProducts(notion);
-  const targets = entries.filter((e) => e.wholesalePrice === null);
+  const targets = entries.filter((e) => e.wholesalePrice === null || e.coopWholesalePrice === null);
 
   for (const entry of targets) {
     await withNotionRetry(() =>
       notion.pages.update({
         page_id: entry.pageId,
         properties: {
-          陸上部卸値: { number: Math.round(entry.listPrice * WHOLESALE_DISCOUNT) },
+          ...(entry.wholesalePrice === null
+            ? { 陸上部卸値: { number: Math.round(entry.listPrice * WHOLESALE_DISCOUNT) } }
+            : {}),
+          ...(entry.coopWholesalePrice === null
+            ? { 購買会卸値: { number: Math.round(entry.listPrice * COOP_WHOLESALE_DISCOUNT) } }
+            : {}),
         },
       })
     );
