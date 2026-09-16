@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { queryAllEvents } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
-import { isLedger, LEDGER_CONFIG, saleEventTypesFor } from "@/lib/ledger";
+import { isLedger, LEDGER_CONFIG, scopeEventTypes, SALE_EVENT_TYPES } from "@/lib/ledger";
 import { compareProductNames } from "@/lib/utils";
 import type { CustomerMatrixResponse, CustomerMatrixRow, Location } from "@/lib/types";
 
@@ -49,7 +49,7 @@ export async function GET(
     // both legs — losing stock at the source, gaining it at the destination
     // — can be evaluated against the requested location below.
     const records = await queryAllEvents(ledger, {
-      eventTypes: [...saleEventTypesFor(ledger), "送料", "入庫", "拠点間移動", "棚卸調整"],
+      eventTypes: scopeEventTypes(ledger, [...SALE_EVENT_TYPES, "送料", "入庫", "拠点間移動", "棚卸調整"]),
     });
 
     const rowsByTransaction = new Map<string, CustomerMatrixRow>();

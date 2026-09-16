@@ -74,29 +74,40 @@ export function manualEntryEventTypes(ledger: Ledger): EventType[] {
 }
 
 /**
- * Full EVENT_TYPES list scoped to a single ledger, for UI filter dropdowns
- * (取引・在庫履歴's 種別 filter) — excludes the OTHER ledger's own "卸し"
- * type, for the same reason as saleEventTypesFor below: it's not normally a
- * valid 種別 select option on this ledger's database, and picking it would
- * make the underlying Notion query fail.
+ * Every 種別 value this ledger's own flows (manual forms, Wix sync,
+ * ACC→陸上部自動連携) can actually write — 陸上部には送料(Wix限定)も
+ * 拠点間移動(allowTransfer=false)も無い、ACCには相手側の卸しの種別
+ * (購買会卸し)が無い、といった台帳固有の欠けが前提。scopeEventTypes
+ * はこれを使って、Notionの種別select filterに相手側だけの値を絶対に
+ * 含めないようにする。
  */
-export function eventTypesFor(ledger: Ledger): EventType[] {
-  const own = LEDGER_CONFIG[ledger].wholesaleEventType;
-  return EVENT_TYPES.filter((t) => (t === "陸上部卸し" || t === "購買会卸し" ? t === own : true));
+function ledgerEventTypes(ledger: Ledger): EventType[] {
+  const config = LEDGER_CONFIG[ledger];
+  return [
+    "入庫",
+    "通常販売",
+    "関係者価格販売",
+    "プレゼント",
+    config.wholesaleEventType,
+    "棚卸調整",
+    "経費",
+    ...(config.allowTransfer ? (["拠点間移動"] as const) : []),
+    ...(ledger === "acc" ? (["送料"] as const) : []),
+  ];
 }
 
 /**
- * SALE_EVENT_TYPES scoped to a single ledger's own "卸し" type, for building
- * a Notion select filter (queryAllEvents' `eventTypes` option). A ledger's
- * 種別 select property only ever gets the OTHER ledger's 卸し type added as
- * an option if someone does so by hand — normally it doesn't exist there,
- * and Notion's API rejects a select filter that names a nonexistent option
- * with a validation_error, breaking the whole query. Filtering it out here
- * keeps summary/customer-matrix queries working regardless.
+ * Narrows a candidate 種別 list to values this ledger's database actually
+ * has as select options (see ledgerEventTypes) — for building a Notion
+ * select filter (queryAllEvents' `eventTypes` option) or a UI filter
+ * dropdown. A select filter naming a value that isn't a real option on the
+ * target database makes Notion reject the WHOLE query with a
+ * validation_error, so any list mixing both ledgers' event types (like
+ * SALE_EVENT_TYPES or EVENT_TYPES) must be passed through this first.
  */
-export function saleEventTypesFor(ledger: Ledger): EventType[] {
-  const own = LEDGER_CONFIG[ledger].wholesaleEventType;
-  return SALE_EVENT_TYPES.filter((t) => (t === "陸上部卸し" || t === "購買会卸し" ? t === own : true));
+export function scopeEventTypes(ledger: Ledger, types: EventType[]): EventType[] {
+  const allowed = new Set(ledgerEventTypes(ledger));
+  return types.filter((t) => allowed.has(t));
 }
 
 export const PURCHASE_ORDER_STATUSES: PurchaseOrderStatus[] = [

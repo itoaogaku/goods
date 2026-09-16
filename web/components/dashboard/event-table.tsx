@@ -22,7 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusSelect } from "@/components/dashboard/status-select";
 import { formatJPY, formatNumber } from "@/lib/utils";
-import { eventTypesFor, LEDGER_CONFIG } from "@/lib/ledger";
+import { EVENT_TYPES, LEDGER_CONFIG, scopeEventTypes } from "@/lib/ledger";
 import type { EventListResponse, EventType, InventoryEvent, Ledger, OrderStatus } from "@/lib/types";
 
 const STATUS_OPTIONS: OrderStatus[] = ["未発送", "発送済", "キャンセル", "返金"];
@@ -138,7 +138,7 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">すべての種別</SelectItem>
-              {eventTypesFor(ledger).map((t) => (
+              {scopeEventTypes(ledger, EVENT_TYPES).map((t) => (
                 <SelectItem key={t} value={t}>
                   {t}
                 </SelectItem>
