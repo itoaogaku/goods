@@ -258,7 +258,7 @@ export async function queryEventsPage(
 }
 
 const STOCK_IN_TYPES: EventType[] = ["入庫"];
-const OUTBOUND_TYPES: EventType[] = ["通常販売", "関係者価格販売", "プレゼント", "卸し"];
+const OUTBOUND_TYPES: EventType[] = ["通常販売", "関係者価格販売", "プレゼント", "陸上部卸し", "購買会卸し"];
 
 /**
  * Computes current stock balance per product x location, from the ledger's

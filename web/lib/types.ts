@@ -12,7 +12,8 @@ export type EventType =
   | "関係者価格販売" // insider/staff discounted sale
   | "プレゼント" // gift, no revenue
   | "拠点間移動" // transfer between locations within the same ledger
-  | "卸し" // wholesale to another party (ACC→陸上部, 陸上部→購買会, etc.)
+  | "陸上部卸し" // ACC ledger only — wholesale from ACC to 陸上部
+  | "購買会卸し" // 陸上部 ledger only — wholesale from 陸上部 to 購買会 (10%マージン差引後の額を記録)
   | "棚卸調整" // stock count correction, signed quantity — its own column in 現在庫, NOT folded into the real 在庫 balance
   | "送料" // shipping fee collected on an order (Wix sync only) — no stock impact
   | "経費"; // a business expense (rent, supplies, ...) — no stock impact

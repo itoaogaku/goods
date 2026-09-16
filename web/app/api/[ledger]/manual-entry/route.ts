@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { createEvent } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
-import { isLedger, LEDGER_CONFIG, MANUAL_ENTRY_EVENT_TYPES } from "@/lib/ledger";
+import { isLedger, LEDGER_CONFIG, manualEntryEventTypes } from "@/lib/ledger";
 import { generateLineId, generateTransactionId } from "@/lib/ids";
 import type { EventType, Location, OrderStatus } from "@/lib/types";
 
@@ -52,7 +52,7 @@ export async function POST(
   if (!location || !config.locations.includes(location)) {
     return jsonWithCors(origin, { error: "拠点を指定してください" }, { status: 400 });
   }
-  if (!eventType || !MANUAL_ENTRY_EVENT_TYPES.includes(eventType)) {
+  if (!eventType || !manualEntryEventTypes(ledger).includes(eventType)) {
     return jsonWithCors(origin, { error: "種別が不正です" }, { status: 400 });
   }
   if (quantity === undefined || !Number.isFinite(quantity) || quantity === 0) {

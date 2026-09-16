@@ -5,24 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductNameInput } from "@/components/dashboard/product-name-input";
-import { LEDGER_CONFIG, MANUAL_ENTRY_EVENT_TYPES } from "@/lib/ledger";
+import { LEDGER_CONFIG, manualEntryEventTypes } from "@/lib/ledger";
 import { useProductPrices } from "@/lib/use-product-prices";
 import { formatJPY } from "@/lib/utils";
 import type { EventType, Ledger, Location, OrderStatus, ProductPriceEntry } from "@/lib/types";
 
 const STATUS_OPTIONS: OrderStatus[] = ["未発送", "発送済", "キャンセル", "返金"];
-
-// 「卸し」の実際の記録先(種別の値・料金表の陸上部卸値との紐付けなど)は
-// 両台帳で共通のままにしつつ、選択肢としてはどこへの卸しかが分かる表示名
-// にする — ACCは陸上部への卸し、陸上部は購買会への卸し。
-const EVENT_TYPE_LABEL: Partial<Record<Ledger, Partial<Record<EventType, string>>>> = {
-  acc: { 卸し: "陸上部卸し" },
-  trackteam: { 卸し: "購買会卸し" },
-};
-
-function eventTypeLabel(ledger: Ledger, type: EventType): string {
-  return EVENT_TYPE_LABEL[ledger]?.[type] ?? type;
-}
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -30,7 +18,7 @@ function today(): string {
 
 // Which 料金表一覧 price column corresponds to each sale-like 種別, for
 // auto-filling 単価 once 商品名 and 種別 are both chosen. null means "don't
-// auto-fill" (棚卸調整 isn't a sale, and 卸し on 陸上部 has its own 定価 ->
+// auto-fill" (棚卸調整 isn't a sale, and 購買会卸し has its own 定価 ->
 // 90%計算 flow — see isCoopWholesale below).
 function priceForEventType(entry: ProductPriceEntry, type: EventType): number | null {
   switch (type) {
@@ -38,7 +26,8 @@ function priceForEventType(entry: ProductPriceEntry, type: EventType): number | 
       return entry.listPrice;
     case "関係者価格販売":
       return entry.insiderPrice;
-    case "卸し":
+    case "陸上部卸し":
+    case "購買会卸し":
       return entry.wholesalePrice;
     case "プレゼント":
       return 0;
@@ -69,10 +58,10 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const isAdjustment = eventType === "棚卸調整";
-  const needsDestinationMemo = eventType === "卸し" || eventType === "プレゼント";
-  // 陸上部の「卸し」は基本的に購買会への販売で、購買会が10%のマージンを
+  const needsDestinationMemo = eventType === "陸上部卸し" || eventType === "購買会卸し" || eventType === "プレゼント";
+  // 陸上部の「購買会卸し」は購買会への販売で、購買会が10%のマージンを
   // 引いた金額が振り込まれる。定価を入力すれば自動でその金額を計算する。
-  const isCoopWholesale = ledger === "trackteam" && eventType === "卸し";
+  const isCoopWholesale = eventType === "購買会卸し";
   const coopUnitPrice = listPrice === "" ? 0 : Math.round(Number(listPrice) * 0.9);
   const effectiveUnitPrice = isCoopWholesale ? coopUnitPrice : Number(unitPrice) || 0;
   const totalAmount = (Number(quantity) || 0) * effectiveUnitPrice;
@@ -155,9 +144,9 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {MANUAL_ENTRY_EVENT_TYPES.map((t) => (
+              {manualEntryEventTypes(ledger).map((t) => (
                 <SelectItem key={t} value={t}>
-                  {eventTypeLabel(ledger, t)}
+                  {t}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -6,8 +6,8 @@ export type Location = "水上村" | "町田" | "陸上部";
 /**
  * Matches the Notion database's 種別 select. This CLI only ever imports
  * Wix order lines, so every row it creates is a 通常販売 — the other event
- * types (入庫 / 関係者価格販売 / プレゼント / 拠点間移動 / 卸し / 棚卸調整)
- * are recorded directly in the web dashboard.
+ * types (入庫 / 関係者価格販売 / プレゼント / 拠点間移動 / 陸上部卸し /
+ * 購買会卸し / 棚卸調整) are recorded directly in the web dashboard.
  */
 export type EventType =
   | "入庫"
@@ -15,7 +15,8 @@ export type EventType =
   | "関係者価格販売"
   | "プレゼント"
   | "拠点間移動"
-  | "卸し"
+  | "陸上部卸し"
+  | "購買会卸し"
   | "棚卸調整";
 
 /**
