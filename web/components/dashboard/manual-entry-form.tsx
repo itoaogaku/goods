@@ -58,6 +58,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const isAdjustment = eventType === "棚卸調整";
+  const isAccToTrackTeamWholesale = ledger === "acc" && eventType === "陸上部卸し";
   const needsDestinationMemo = eventType === "陸上部卸し" || eventType === "購買会卸し" || eventType === "プレゼント";
   // 陸上部の「購買会卸し」は購買会への販売で、購買会が10%のマージンを
   // 引いた金額が振り込まれる。定価を入力すれば自動でその金額を計算する。
@@ -106,7 +107,10 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
-      setMessage({ type: "success", text: "記録しました" });
+      setMessage({
+        type: "success",
+        text: data.warning ? `記録しました（${data.warning}）` : "記録しました",
+      });
       setProductName("");
       setQuantity("");
       setUnitPrice("0");
@@ -223,6 +227,11 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       <p className="text-sm text-muted-foreground">
         合計金額（単価×数量）: <span className="font-medium text-foreground">{formatJPY(totalAmount)}</span>
       </p>
+      {isAccToTrackTeamWholesale && (
+        <p className="text-sm text-muted-foreground">
+          記録すると、陸上部側にも同じ商品・数量の在庫登録（入庫）と、支払金額分の経費が自動で記録されます。陸上部側で別途入力する必要はありません。
+        </p>
+      )}
       {message && (
         <p className={`text-sm ${message.type === "error" ? "text-destructive" : "text-emerald-600"}`}>
           {message.text}

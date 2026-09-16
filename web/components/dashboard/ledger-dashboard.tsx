@@ -8,7 +8,6 @@ import { ProductRanking } from "@/components/dashboard/product-ranking";
 import { StockTable } from "@/components/dashboard/stock-table";
 import { PendingShipmentsPanel } from "@/components/dashboard/pending-shipments-panel";
 import { ExpensePanel } from "@/components/dashboard/expense-panel";
-import { CustomerMatrixTable } from "@/components/dashboard/customer-matrix-table";
 import { InventoryForms } from "@/components/dashboard/inventory-forms";
 import { EventTable } from "@/components/dashboard/event-table";
 import { WixSyncButton } from "@/components/dashboard/wix-sync-button";
@@ -89,10 +88,8 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
       <PendingShipmentsPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <StockTable ledger={ledger} refreshKey={refreshKey} />
       <ExpensePanel ledger={ledger} refreshKey={refreshKey} />
-      {/* ACCはナビの「顧客別集計」タブに専用ページがあるためここでは重複表示しない。
-          陸上部はそのタブが無いので、この場に直接埋め込む（購買会などの卸し先は
-          Wix連携が無いため顧客名の代わりに備考を表示する仕様、customer-matrix-table.tsx参照） */}
-      {ledger === "trackteam" && <CustomerMatrixTable ledger={ledger} />}
+      {/* 顧客別集計はナビの「顧客別集計」タブ（両台帳を切り替え可能）に
+          専用ページがあるため、ここでは重複表示しない。 */}
       {/* PurchaseOrderPanel (発注一覧) is hidden for now — see inventory-forms.tsx */}
       <InventoryForms ledger={ledger} onChanged={handleChanged} />
       <EventTable ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />

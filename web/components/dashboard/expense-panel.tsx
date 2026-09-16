@@ -19,12 +19,14 @@ interface ExpensePanelProps {
   refreshKey: number;
 }
 
-// The 在庫登録 form's 仕入れ金額 and the 経費登録 tab both write 種別=経費,
-// sharing the transactionId prefix of whichever route created them
-// (see /api/[ledger]/stock-in and /api/[ledger]/expense) — used here only
-// to label a row, not to change how it's counted.
-function isProcurement(transactionId: string): boolean {
-  return transactionId.startsWith("STOCK-");
+// The 在庫登録 form's 仕入れ金額, the 経費登録 tab, and ACC→陸上部卸しの
+// 自動記録(陸上部側) all write 種別=経費 — the first two are identified by
+// the transactionId prefix of whichever route created them (see
+// /api/[ledger]/stock-in and /api/[ledger]/expense), the last by its memo
+// (see /api/[ledger]/manual-entry). Used here only to label a row, not to
+// change how it's counted.
+function isProcurement(record: Pick<InventoryEvent, "transactionId" | "memo">): boolean {
+  return record.transactionId.startsWith("STOCK-") || record.memo.includes("ACCからの仕入れ");
 }
 
 export function ExpensePanel({ ledger, refreshKey }: ExpensePanelProps) {
@@ -77,8 +79,8 @@ export function ExpensePanel({ ledger, refreshKey }: ExpensePanelProps) {
                 <TableRow key={record.pageId}>
                   <TableCell className="whitespace-nowrap">{record.occurredAt.slice(0, 10)}</TableCell>
                   <TableCell>
-                    <Badge variant={isProcurement(record.transactionId) ? "success" : "secondary"}>
-                      {isProcurement(record.transactionId) ? "仕入れ" : "その他"}
+                    <Badge variant={isProcurement(record) ? "success" : "secondary"}>
+                      {isProcurement(record) ? "仕入れ" : "その他"}
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-48 truncate">{record.productName}</TableCell>
