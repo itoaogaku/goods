@@ -12,6 +12,18 @@ import type { EventType, Ledger, Location, OrderStatus, ProductPriceEntry } from
 
 const STATUS_OPTIONS: OrderStatus[] = ["未発送", "発送済", "キャンセル", "返金"];
 
+// 「卸し」の実際の記録先(種別の値・料金表の陸上部卸値との紐付けなど)は
+// 両台帳で共通のままにしつつ、選択肢としてはどこへの卸しかが分かる表示名
+// にする — ACCは陸上部への卸し、陸上部は購買会への卸し。
+const EVENT_TYPE_LABEL: Partial<Record<Ledger, Partial<Record<EventType, string>>>> = {
+  acc: { 卸し: "陸上部卸し" },
+  trackteam: { 卸し: "購買会卸し" },
+};
+
+function eventTypeLabel(ledger: Ledger, type: EventType): string {
+  return EVENT_TYPE_LABEL[ledger]?.[type] ?? type;
+}
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -145,7 +157,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
             <SelectContent>
               {MANUAL_ENTRY_EVENT_TYPES.map((t) => (
                 <SelectItem key={t} value={t}>
-                  {t}
+                  {eventTypeLabel(ledger, t)}
                 </SelectItem>
               ))}
             </SelectContent>
