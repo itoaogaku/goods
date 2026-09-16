@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DateRangeFilter, type DateRange } from "@/components/dashboard/date-range-filter";
 import { LEDGER_CONFIG } from "@/lib/ledger";
 import { cn, formatJPY, formatNumber } from "@/lib/utils";
 import type { CustomerMatrixResponse, Ledger } from "@/lib/types";
@@ -51,7 +52,26 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
   const [loading, setLoading] = useState(true);
   const [jumpDate, setJumpDate] = useState("");
   const [jumpMessage, setJumpMessage] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange>({});
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+
+  // 期間を絞り込んでも残高の計算（在庫の推移）は全履歴が必要なので、
+  // サーバー側の取得・計算は変えず、表示する行と合計金額だけを
+  // クライアント側で期間に応じて絞り込む。
+  const rows = (data?.rows ?? []).filter((row) => {
+    const date = row.orderDate.slice(0, 10);
+    if (dateRange.from && date < dateRange.from) return false;
+    if (dateRange.to && date > dateRange.to) return false;
+    return true;
+  });
+  const totals = rows.reduce(
+    (acc, row) => ({
+      productRevenue: acc.productRevenue + row.productRevenue,
+      shippingRevenue: acc.shippingRevenue + row.shippingRevenue,
+      total: acc.total + row.total,
+    }),
+    { productRevenue: 0, shippingRevenue: 0, total: 0 }
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -82,7 +102,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
   // falling back to the oldest row covers a date older than all of them.
   function handleJump() {
     if (!data || !jumpDate) return;
-    const match = data.rows.find((r) => r.orderDate.slice(0, 10) <= jumpDate) ?? data.rows[data.rows.length - 1];
+    const match = rows.find((r) => r.orderDate.slice(0, 10) <= jumpDate) ?? rows[rows.length - 1];
     const el = match ? rowRefs.current.get(match.transactionId) : undefined;
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -133,8 +153,29 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
           {jumpMessage && <span className="text-muted-foreground">{jumpMessage}</span>}
         </div>
 
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
+
         {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {data && (
+          <div className="flex flex-wrap gap-x-6 gap-y-1 rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
+            <span>
+              商品売上合計 <span className="font-semibold text-foreground">{formatJPY(totals.productRevenue)}</span>
+            </span>
+            <span>
+              送料合計 <span className="font-semibold text-foreground">{formatJPY(totals.shippingRevenue)}</span>
+            </span>
+            <span>
+              売上合計 <span className="font-semibold text-foreground">{formatJPY(totals.total)}</span>
+            </span>
+            {(dateRange.from || dateRange.to) && (
+              <span className="text-muted-foreground">
+                （{dateRange.from ?? "…"} 〜 {dateRange.to ?? "…"} の{rows.length}件）
+              </span>
+            )}
+          </div>
+        )}
 
         {data && (
           // Table's own wrapper div (components/ui/table.tsx) also sets
@@ -171,7 +212,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.rows.map((row) => (
+                {rows.map((row) => (
                   <TableRow
                     key={row.transactionId}
                     ref={(el) => {
@@ -224,7 +265,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                     <TableCell className="max-w-32 truncate text-muted-foreground">{row.memo}</TableCell>
                   </TableRow>
                 ))}
-                {!loading && data.rows.length === 0 && (
+                {!loading && rows.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={data.columns.length + 7} className="py-8 text-center text-muted-foreground">
                       データがありません
