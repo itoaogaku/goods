@@ -95,7 +95,11 @@ async function queryAllProducts(notion: Client): Promise<ProductPriceEntry[]> {
  */
 export async function listProducts(): Promise<ProductPriceEntry[]> {
   const notion = getNotionClient();
-  const [entries, balances] = await Promise.all([queryAllProducts(notion), computeStockBalances("acc")]);
+  const [allEntries, balances] = await Promise.all([queryAllProducts(notion), computeStockBalances("acc")]);
+  // Wixの決済動作確認用に作られた「〜テスト」商品は実商品ではないので、
+  // 料金表一覧・商品名の入力候補には出さない（Notion上のデータ自体は
+  // 触らないので、Wix同期の重複作成判定には影響しない — fetchExistingProducts参照）。
+  const entries = allEntries.filter((e) => !e.productName.includes("テスト"));
 
   const firstStockInByProduct = new Map<string, string | null>();
   for (const b of balances) {
