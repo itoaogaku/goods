@@ -18,8 +18,7 @@ function today(): string {
 
 // Which 料金表一覧 price column corresponds to each sale-like 種別, for
 // auto-filling 単価 once 商品名 and 種別 are both chosen. null means "don't
-// auto-fill" (棚卸調整 isn't a sale, and 購買会卸し has its own 定価 ->
-// 90%計算 flow — see isCoopWholesale below).
+// auto-fill" (棚卸調整 isn't a sale).
 function priceForEventType(entry: ProductPriceEntry, type: EventType): number | null {
   switch (type) {
     case "通常販売":
@@ -27,8 +26,9 @@ function priceForEventType(entry: ProductPriceEntry, type: EventType): number | 
     case "関係者価格販売":
       return entry.insiderPrice;
     case "陸上部卸し":
-    case "購買会卸し":
       return entry.wholesalePrice;
+    case "購買会卸し":
+      return entry.coopWholesalePrice;
     case "プレゼント":
       return 0;
     default:
@@ -50,7 +50,6 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const [eventType, setEventType] = useState<EventType>("通常販売");
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("0");
-  const [listPrice, setListPrice] = useState("");
   const [status, setStatus] = useState<OrderStatus>("発送済");
   const [customerName, setCustomerName] = useState("");
   const [memo, setMemo] = useState("");
@@ -59,12 +58,9 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
 
   const isAdjustment = eventType === "棚卸調整";
   const isAccToTrackTeamWholesale = ledger === "acc" && eventType === "陸上部卸し";
-  const needsDestinationMemo = eventType === "陸上部卸し" || eventType === "購買会卸し" || eventType === "プレゼント";
-  // 陸上部の「購買会卸し」は購買会への販売で、購買会が10%のマージンを
-  // 引いた金額が振り込まれる。定価を入力すれば自動でその金額を計算する。
-  const isCoopWholesale = eventType === "購買会卸し";
-  const coopUnitPrice = listPrice === "" ? 0 : Math.round(Number(listPrice) * 0.9);
-  const effectiveUnitPrice = isCoopWholesale ? coopUnitPrice : Number(unitPrice) || 0;
+  const isCoopSale = ledger === "trackteam" && eventType === "購買会卸し";
+  const needsDestinationMemo = eventType === "陸上部卸し" || eventType === "プレゼント";
+  const effectiveUnitPrice = Number(unitPrice) || 0;
   const totalAmount = (Number(quantity) || 0) * effectiveUnitPrice;
 
   // Adjusting state during render (not in an effect) when 商品名/種別
@@ -76,11 +72,18 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const autoFillKey = `${productName}|||${eventType}`;
   if (autoFillKey !== lastAutoFillKey) {
     setLastAutoFillKey(autoFillKey);
-    if (!isCoopWholesale) {
-      const entry = prices.find((p) => p.productName === productName);
-      const autoPrice = entry ? priceForEventType(entry, eventType) : null;
-      if (autoPrice !== null) setUnitPrice(String(autoPrice));
-    }
+    const entry = prices.find((p) => p.productName === productName);
+    const autoPrice = entry ? priceForEventType(entry, eventType) : null;
+    if (autoPrice !== null) setUnitPrice(String(autoPrice));
+  }
+
+  // 購買会卸し（購買会での実売報告）は必ず拠点=購買会で記録するべきなので、
+  // 種別をそれに切り替えたタイミングで拠点も合わせて自動選択する（他の
+  // 種別へ切り替えたときは拠点はそのまま、ユーザーが選んだ値を保つ）。
+  const [lastLocationAutoKey, setLastLocationAutoKey] = useState(eventType);
+  if (eventType !== lastLocationAutoKey) {
+    setLastLocationAutoKey(eventType);
+    if (isCoopSale && config.locations.includes("購買会")) setLocation("購買会");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -114,7 +117,6 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       setProductName("");
       setQuantity("");
       setUnitPrice("0");
-      setListPrice("");
       setCustomerName("");
       setMemo("");
       onSuccess();
@@ -179,23 +181,15 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
           数量{isAdjustment && "（減らす場合はマイナス）"}
           <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
         </label>
-        {isCoopWholesale ? (
-          <label className="flex flex-col gap-1 text-sm">
-            定価（購買会での販売価格）
-            <Input type="number" min={0} value={listPrice} onChange={(e) => setListPrice(e.target.value)} />
-            <span className="text-xs text-muted-foreground">
-              購買会の10%マージン差引後、陸上部の単価は ¥{coopUnitPrice.toLocaleString("ja-JP")} として記録されます
-            </span>
-          </label>
-        ) : (
-          <label className="flex flex-col gap-1 text-sm">
-            単価
-            <Input type="number" min={0} value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
-            <span className="text-xs text-muted-foreground">
-              商品名・種別を選ぶと料金表から自動入力されます（必要に応じて変更できます）
-            </span>
-          </label>
-        )}
+        <label className="flex flex-col gap-1 text-sm">
+          単価
+          <Input type="number" min={0} value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
+          <span className="text-xs text-muted-foreground">
+            {isCoopSale
+              ? "商品名を選ぶと料金表の購買会卸値（定価の10%オフ）が自動入力されます（必要に応じて変更できます）"
+              : "商品名・種別を選ぶと料金表から自動入力されます（必要に応じて変更できます）"}
+          </span>
+        </label>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm">
@@ -230,6 +224,11 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
       {isAccToTrackTeamWholesale && (
         <p className="text-sm text-muted-foreground">
           記録すると、陸上部側にも同じ商品・数量の在庫登録（入庫）と、支払金額分の経費が自動で記録されます。陸上部側で別途入力する必要はありません。
+        </p>
+      )}
+      {isCoopSale && (
+        <p className="text-sm text-muted-foreground">
+          購買会に置いている在庫の中から、実際に売れた分を月末の報告に合わせて記録してください（拠点は「購買会」のまま）。購買会の在庫がその数だけ減り、単価×数量が陸上部の売上として計上されます。
         </p>
       )}
       {message && (

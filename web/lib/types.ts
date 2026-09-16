@@ -3,7 +3,7 @@ export type OrderStatus = "未発送" | "発送済" | "キャンセル" | "返�
 export type Ledger = "acc" | "trackteam";
 
 /** Physical/organizational stock location. ACC owns 水上村 and 町田; 陸上部 is its own ledger's single location. */
-export type Location = "水上村" | "町田" | "陸上部";
+export type Location = "水上村" | "町田" | "陸上部" | "購買会";
 
 export type EventType =
   | "発注" // purchase order placed — does NOT affect stock until received

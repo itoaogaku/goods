@@ -30,8 +30,12 @@ export const LEDGER_CONFIG: Record<Ledger, LedgerConfig> = {
   trackteam: {
     label: "陸上部 在庫・販売管理",
     shortLabel: "陸上部",
-    locations: ["陸上部"],
-    allowTransfer: false,
+    // 購買会は陸上部の在庫の一部を置かせてもらっているだけの別拠点。
+    // 陸上部→購買会は「拠点間移動」で在庫だけを動かし、実際に購買会で
+    // 売れた分だけを「購買会卸し」（1点ごとに10%マージン差引後の額を
+    // 記録）で計上する。
+    locations: ["陸上部", "購買会"],
+    allowTransfer: true,
     wholesaleEventType: "購買会卸し",
   },
 };
