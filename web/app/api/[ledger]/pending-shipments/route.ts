@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { queryAllEvents } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
-import { isLedger, SALE_EVENT_TYPES } from "@/lib/ledger";
+import { isLedger, saleEventTypesFor } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 // A growing ledger can take a while to fully page through — give this
@@ -29,7 +29,7 @@ export async function GET(
   try {
     const records = await queryAllEvents(ledger, {
       status: "未発送",
-      eventTypes: SALE_EVENT_TYPES,
+      eventTypes: saleEventTypesFor(ledger),
     });
     return jsonWithCors(origin, { records });
   } catch (error) {

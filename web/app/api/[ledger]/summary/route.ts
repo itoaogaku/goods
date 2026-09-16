@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { queryAllEvents, SALES_DATA_SINCE } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
-import { isLedger, SALE_EVENT_TYPES } from "@/lib/ledger";
+import { isLedger, saleEventTypesFor } from "@/lib/ledger";
 import type { MonthlyStat, ProductRankingEntry, SalesSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +41,7 @@ export async function GET(
     const records = await queryAllEvents(ledger, {
       dateFrom: rangeStart,
       dateTo: to,
-      eventTypes: [...SALE_EVENT_TYPES, "送料", "経費"],
+      eventTypes: [...saleEventTypesFor(ledger), "送料", "経費"],
     });
 
     const monthlyMap = new Map<string, MonthlyStat>();
