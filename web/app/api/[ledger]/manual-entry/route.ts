@@ -107,8 +107,7 @@ export async function POST(
           status: "発送済",
         });
 
-        const purchaseAmount = unitPrice * quantity;
-        if (purchaseAmount > 0) {
+        if (unitPrice > 0) {
           await createEvent("trackteam", {
             transactionId,
             lineId: generateLineId("wholesale_expense"),
@@ -116,8 +115,8 @@ export async function POST(
             occurredAt,
             location: trackTeamConfig.locations[0],
             productName,
-            quantity: 1,
-            unitPrice: purchaseAmount,
+            quantity,
+            unitPrice,
             memo: "ACCからの仕入れ",
             status: "発送済",
           });
