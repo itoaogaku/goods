@@ -23,6 +23,8 @@ interface ManualEntryBody {
   memo?: string;
   status?: OrderStatus;
   customerName?: string;
+  /** ACC→陸上部自動連携（陸上部卸し）専用: 陸上部側の入庫・経費をどの拠点に記録するか。省略時は陸上部本体。 */
+  trackTeamLocation?: Location;
 }
 
 export async function POST(
@@ -94,12 +96,16 @@ export async function POST(
     if (ledger === "acc" && eventType === "陸上部卸し") {
       try {
         const trackTeamConfig = LEDGER_CONFIG.trackteam;
+        const trackTeamLocation =
+          body?.trackTeamLocation && trackTeamConfig.locations.includes(body.trackTeamLocation)
+            ? body.trackTeamLocation
+            : trackTeamConfig.locations[0];
         await createEvent("trackteam", {
           transactionId,
           lineId: generateLineId("wholesale_stockin"),
           eventType: "入庫",
           occurredAt,
-          location: trackTeamConfig.locations[0],
+          location: trackTeamLocation,
           productName,
           quantity,
           unitPrice: 0,
@@ -113,7 +119,7 @@ export async function POST(
             lineId: generateLineId("wholesale_expense"),
             eventType: "経費",
             occurredAt,
-            location: trackTeamConfig.locations[0],
+            location: trackTeamLocation,
             productName,
             quantity,
             unitPrice,

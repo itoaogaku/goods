@@ -53,6 +53,10 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
   const [status, setStatus] = useState<OrderStatus>("発送済");
   const [customerName, setCustomerName] = useState("");
   const [memo, setMemo] = useState("");
+  // ACC→陸上部の自動連携で、陸上部側の入庫（と紐づく経費）をどちらの
+  // 拠点に記録するか。通常は陸上部本体の在庫になるが、購買会へ直送する
+  // 場合はここで「購買会」を選べば、拠点間移動を別途記録する必要がない。
+  const [trackTeamDestination, setTrackTeamDestination] = useState<Location>(LEDGER_CONFIG.trackteam.locations[0]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -105,6 +109,7 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
           status,
           customerName,
           memo,
+          trackTeamLocation: isAccToTrackTeamWholesale ? trackTeamDestination : undefined,
         }),
       });
       const data = await res.json();
@@ -222,9 +227,26 @@ export function ManualEntryForm({ ledger, onSuccess }: ManualEntryFormProps) {
         合計金額（単価×数量）: <span className="font-medium text-foreground">{formatJPY(totalAmount)}</span>
       </p>
       {isAccToTrackTeamWholesale && (
-        <p className="text-sm text-muted-foreground">
-          記録すると、陸上部側にも同じ商品・数量の在庫登録（入庫）と、支払金額分の経費が自動で記録されます。陸上部側で別途入力する必要はありません。
-        </p>
+        <div className="flex flex-col gap-2">
+          <label className="flex flex-col gap-1 text-sm sm:w-1/2">
+            陸上部側の入庫先
+            <Select value={trackTeamDestination} onValueChange={(v) => setTrackTeamDestination(v as Location)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LEDGER_CONFIG.trackteam.locations.map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    {loc}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          <p className="text-sm text-muted-foreground">
+            記録すると、陸上部側にも同じ商品・数量の在庫登録（入庫）と、支払金額分の経費が自動で記録されます。陸上部側で別途入力する必要はありません。購買会へ直接送る場合は、入庫先を「購買会」にしてください（拠点間移動を別途記録する必要がなくなります）。
+          </p>
+        </div>
       )}
       {isCoopSale && (
         <p className="text-sm text-muted-foreground">
