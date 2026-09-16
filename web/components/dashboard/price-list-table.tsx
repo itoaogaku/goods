@@ -119,6 +119,12 @@ export function PriceListTable() {
     }
   }
 
+  // 原価率 = 原価 ÷ 定価。原価が未入力、または定価が0円の商品では計算できない。
+  function costRatioLabel(product: ProductPriceEntry): string {
+    if (product.costPrice === null || product.listPrice <= 0) return "―";
+    return `${((product.costPrice / product.listPrice) * 100).toFixed(1)}%`;
+  }
+
   function renderPriceCell(
     product: ProductPriceEntry,
     field: "costPrice" | "insiderPrice" | "wholesalePrice" | "coopWholesalePrice"
@@ -178,6 +184,7 @@ export function PriceListTable() {
                   <TableHead>商品名</TableHead>
                   <TableHead className="text-right">定価</TableHead>
                   <TableHead className="text-right">原価</TableHead>
+                  <TableHead className="text-right">原価率</TableHead>
                   <TableHead className="text-right">関係者価格</TableHead>
                   <TableHead className="text-right">陸上部卸値</TableHead>
                   <TableHead className="text-right">購買会卸値</TableHead>
@@ -189,6 +196,9 @@ export function PriceListTable() {
                     <TableCell className="max-w-64 truncate">{product.productName}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatJPY(product.listPrice)}</TableCell>
                     <TableCell className="text-right">{renderPriceCell(product, "costPrice")}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {costRatioLabel(product)}
+                    </TableCell>
                     <TableCell className="text-right">{renderPriceCell(product, "insiderPrice")}</TableCell>
                     <TableCell className="text-right">{renderPriceCell(product, "wholesalePrice")}</TableCell>
                     <TableCell className="text-right">{renderPriceCell(product, "coopWholesalePrice")}</TableCell>
@@ -196,7 +206,7 @@ export function PriceListTable() {
                 ))}
                 {products.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                       商品がありません。「今すぐWixと同期」を押してください。
                     </TableCell>
                   </TableRow>
