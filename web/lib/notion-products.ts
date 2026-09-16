@@ -5,7 +5,7 @@ import {
   isFullPage,
 } from "@notionhq/client";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
-import { getNotionClient, withNotionRetry } from "./notion";
+import { computeStockBalances, getNotionClient, withNotionRetry } from "./notion";
 import { compareProductNames } from "./utils";
 import type { ProductPriceEntry } from "./types";
 
@@ -82,11 +82,34 @@ async function queryAllProducts(notion: Client): Promise<ProductPriceEntry[]> {
   return rows.filter(isFullPage).map(pageToProductPriceEntry);
 }
 
-/** All rows in the price list, for display in the 料金表一覧 tab. */
+/**
+ * All rows in the price list, for display in the 料金表一覧 tab (and the
+ * 商品名 autocomplete used across both ledgers' forms) — ordered the same
+ * way as 現在庫/顧客別集計: by each product's first-ever 在庫追加(入庫)
+ * date (oldest left/top, a later repeat stock-in doesn't move it), products
+ * never stocked in pushed to the end, ties broken by compareProductNames
+ * (keeps XL/L/M/S/XS size variants grouped). The price list is shared across
+ * both ledgers, but every product ultimately enters inventory via ACC (陸上部
+ * only ever receives stock that already passed through ACC), so ACC's stock-in
+ * history is used as the single source of truth for this ordering.
+ */
 export async function listProducts(): Promise<ProductPriceEntry[]> {
   const notion = getNotionClient();
-  const entries = await queryAllProducts(notion);
-  return entries.sort((a, b) => compareProductNames(a.productName, b.productName));
+  const [entries, balances] = await Promise.all([queryAllProducts(notion), computeStockBalances("acc")]);
+
+  const firstStockInByProduct = new Map<string, string | null>();
+  for (const b of balances) {
+    if (!firstStockInByProduct.has(b.productName)) firstStockInByProduct.set(b.productName, b.firstStockInDate);
+  }
+
+  return entries.sort((a, b) => {
+    const dateA = firstStockInByProduct.get(a.productName);
+    const dateB = firstStockInByProduct.get(b.productName);
+    if (dateA && dateB) return dateA.localeCompare(dateB) || compareProductNames(a.productName, b.productName);
+    if (dateA) return -1;
+    if (dateB) return 1;
+    return compareProductNames(a.productName, b.productName);
+  });
 }
 
 /** Every existing row indexed by Wix product ID, for the sync's create-vs-update decision. */
