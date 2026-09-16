@@ -101,7 +101,10 @@ export interface CreateProductInput {
   listPrice: number;
 }
 
-/** Registers a Wix product not yet in the price list. 関係者価格/陸上部卸値 are left blank for manual entry. */
+/** 陸上部卸値 defaults to 13% off 定価 unless hand-edited afterward — see WHOLESALE_DISCOUNT below. */
+const WHOLESALE_DISCOUNT = 0.87;
+
+/** Registers a Wix product not yet in the price list. 関係者価格 is left blank for manual entry; 陸上部卸値 defaults to 定価の13%オフ. */
 export async function createProduct(input: CreateProductInput): Promise<string> {
   const notion = getNotionClient();
   const dataSourceId = await getProductsDataSourceId();
@@ -112,6 +115,7 @@ export async function createProduct(input: CreateProductInput): Promise<string> 
         商品名: { title: [{ text: { content: input.productName } }] },
         定価: { number: input.listPrice },
         WixプロダクトID: { rich_text: [{ text: { content: input.wixProductId } }] },
+        陸上部卸値: { number: Math.round(input.listPrice * WHOLESALE_DISCOUNT) },
       },
     })
   );
@@ -151,4 +155,37 @@ export async function updateProductPrices(
       },
     })
   );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Notion's documented rate limit is an average of ~3 requests/second —
+// paced the same as lib/wix-sync.ts's own bulk writes.
+const BACKFILL_WRITE_INTERVAL_MS = 350;
+
+/**
+ * One-time catch-up for rows registered before 陸上部卸値 had a default —
+ * fills only rows where it's still blank, to 定価の13%オフ. Never touches a
+ * row that already has a value (hand-entered or previously backfilled).
+ */
+export async function backfillWholesalePrices(): Promise<number> {
+  const notion = getNotionClient();
+  const entries = await queryAllProducts(notion);
+  const targets = entries.filter((e) => e.wholesalePrice === null);
+
+  for (const entry of targets) {
+    await withNotionRetry(() =>
+      notion.pages.update({
+        page_id: entry.pageId,
+        properties: {
+          陸上部卸値: { number: Math.round(entry.listPrice * WHOLESALE_DISCOUNT) },
+        },
+      })
+    );
+    await sleep(BACKFILL_WRITE_INTERVAL_MS);
+  }
+
+  return targets.length;
 }

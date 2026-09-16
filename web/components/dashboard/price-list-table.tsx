@@ -25,6 +25,8 @@ export function PriceListTable() {
   // pressing 編集する — a plain always-editable number input is too easy to
   // bump by accident while scrolling/tapping on a phone.
   const [editing, setEditing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillMessage, setBackfillMessage] = useState<string | null>(null);
 
   async function fetchProducts(): Promise<ProductPriceEntry[]> {
     const res = await fetch("/api/products/list");
@@ -100,6 +102,22 @@ export function PriceListTable() {
     }
   }
 
+  async function handleBackfillWholesale() {
+    setBackfilling(true);
+    setBackfillMessage(null);
+    try {
+      const res = await fetch("/api/products/backfill-wholesale-price", { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.detail ?? body.error ?? `HTTP ${res.status}`);
+      setBackfillMessage(`${body.filled}件の陸上部卸値を定価の13%オフで入力しました`);
+      await load();
+    } catch (err) {
+      setBackfillMessage(err instanceof Error ? err.message : "一括入力に失敗しました");
+    } finally {
+      setBackfilling(false);
+    }
+  }
+
   function renderPriceCell(product: ProductPriceEntry, field: "costPrice" | "insiderPrice" | "wholesalePrice") {
     if (!editing) {
       const value = product[field];
@@ -135,8 +153,15 @@ export function PriceListTable() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          商品名と定価はWixの商品登録から自動で反映されます。原価・関係者価格・陸上部卸値は誤入力を防ぐため通常は編集できません。変更するときは「編集する」を押してください（入力欄から離れると自動保存されます）。
+          商品名と定価はWixの商品登録から自動で反映されます。原価・関係者価格・陸上部卸値は誤入力を防ぐため通常は編集できません。変更するときは「編集する」を押してください（入力欄から離れると自動保存されます）。陸上部卸値は新規商品の登録時、定価の13%オフが自動で入力されます。
         </p>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={handleBackfillWholesale} disabled={backfilling}>
+            {backfilling ? "入力中…" : "陸上部卸値の空欄を定価の13%オフで一括入力"}
+          </Button>
+          {backfillMessage && <span className="text-sm text-muted-foreground">{backfillMessage}</span>}
+        </div>
 
         {loading && <p className="text-sm text-muted-foreground">読み込み中…</p>}
         {error && <p className="text-sm text-destructive">{error}</p>}
