@@ -13,6 +13,7 @@ const LEDGER_HREF: Record<string, string> = {
 const EXTRA_TABS = [
   { href: "/customers", label: "顧客別集計" },
   { href: "/price-list", label: "料金表一覧" },
+  { href: "/analytics", label: "分析" },
 ];
 
 export function NavTabs() {

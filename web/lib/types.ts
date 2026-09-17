@@ -142,3 +142,45 @@ export interface ProductPriceEntry {
   wholesalePrice: number | null;
   coopWholesalePrice: number | null;
 }
+
+/** One product's row in the 分析 tab's 商品別利益率 table (see /api/[ledger]/analytics). */
+export interface ProductProfitability {
+  productName: string;
+  quantitySold: number;
+  revenue: number;
+  /** 料金表一覧の原価（単価）。未入力の商品は null。 */
+  unitCost: number | null;
+  /** unitCost × quantitySold。unitCostがnullなら null。 */
+  totalCost: number | null;
+  /** revenue − totalCost。totalCostがnullなら null。 */
+  profit: number | null;
+  /** profit ÷ revenue × 100。revenueが0またはprofitがnullなら null。 */
+  marginPercent: number | null;
+}
+
+/** One slice of the 分析 tab's 拠点別/種別別売上構成 breakdown. */
+export interface RevenueBreakdownEntry {
+  label: string;
+  revenue: number;
+  quantity: number;
+}
+
+/** One product's row in the 分析 tab's 在庫回転率 table — how soon it's projected to run out at its recent selling pace. */
+export interface StockTurnoverEntry {
+  productName: string;
+  currentStock: number;
+  /** 直近90日の平均販売数を30日換算した月あたり販売数の目安。 */
+  avgMonthlySold: number;
+  /** currentStock ÷ 1日あたり平均販売数。在庫が無いか直近の販売が無ければ null。 */
+  estimatedDaysRemaining: number | null;
+}
+
+export interface AnalyticsResponse {
+  rangeStart: string;
+  rangeEnd: string | null;
+  productProfitability: ProductProfitability[];
+  revenueByLocation: RevenueBreakdownEntry[];
+  revenueByEventType: RevenueBreakdownEntry[];
+  /** Always computed from the most recent 90 days, independent of rangeStart/rangeEnd above. */
+  stockTurnover: StockTurnoverEntry[];
+}
