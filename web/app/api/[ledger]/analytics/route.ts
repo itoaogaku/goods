@@ -73,7 +73,14 @@ export async function GET(
         const marginPercent = profit !== null && revenue > 0 ? (profit / revenue) * 100 : null;
         return { productName, quantitySold, revenue, unitCost, totalCost, profit, marginPercent };
       })
-      .sort((a, b) => b.revenue - a.revenue);
+      // 利益率が高い順（ランキング）。原価未入力で利益率が出せない商品は
+      // 末尾にまとめ、その中は売上順にする。
+      .sort((a, b) => {
+        if (a.marginPercent === null && b.marginPercent === null) return b.revenue - a.revenue;
+        if (a.marginPercent === null) return 1;
+        if (b.marginPercent === null) return -1;
+        return b.marginPercent - a.marginPercent;
+      });
 
     // 拠点別・種別ごとの売上構成
     function aggregateBy(keyOf: (e: (typeof rangeEvents)[number]) => string): RevenueBreakdownEntry[] {

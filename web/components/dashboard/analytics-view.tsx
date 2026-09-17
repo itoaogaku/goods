@@ -160,16 +160,17 @@ function ProductProfitabilityTable({ entries }: { entries: ProductProfitability[
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base font-semibold text-foreground">商品別の利益率分析</CardTitle>
+        <CardTitle className="text-base font-semibold text-foreground">商品別利益率ランキング</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          選択した期間に販売された商品ごとに、売上・原価（料金表一覧の原価×販売数量）・利益・利益率をまとめています。原価が未入力の商品は「―」と表示されます。
+          選択した期間に販売された商品を、利益率（利益÷売上）が高い順にランキング表示しています。利益は売上−原価（料金表一覧の原価×販売数量）です。原価が未入力の商品は利益率が出せないため、末尾に売上順でまとめています。
         </p>
         <div className="max-h-[60vh] overflow-auto rounded-md border border-border">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="sticky top-0 z-10 bg-background w-12 text-right">順位</TableHead>
                 <TableHead className="sticky top-0 z-10 bg-background">商品名</TableHead>
                 <TableHead className="sticky top-0 z-10 bg-background text-right">販売数量</TableHead>
                 <TableHead className="sticky top-0 z-10 bg-background text-right">売上</TableHead>
@@ -179,8 +180,9 @@ function ProductProfitabilityTable({ entries }: { entries: ProductProfitability[
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entries.map((p) => (
+              {entries.map((p, i) => (
                 <TableRow key={p.productName}>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="max-w-56 truncate font-medium">{p.productName}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatNumber(p.quantitySold)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatJPY(p.revenue)}</TableCell>
@@ -196,14 +198,14 @@ function ProductProfitabilityTable({ entries }: { entries: ProductProfitability[
                   >
                     {p.profit === null ? "―" : formatJPY(p.profit)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums font-medium">
                     {p.marginPercent === null ? "―" : `${p.marginPercent.toFixed(1)}%`}
                   </TableCell>
                 </TableRow>
               ))}
               {entries.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     この期間の販売データがありません
                   </TableCell>
                 </TableRow>
