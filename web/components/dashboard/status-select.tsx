@@ -17,7 +17,8 @@ const STATUS_BADGE_VARIANT: Record<OrderStatus, "warning" | "success" | "destruc
 
 interface StatusSelectProps {
   ledger: Ledger;
-  pageId: string;
+  /** A single line's pageId, or every pageId belonging to one 取引ID (e.g. 発送管理's grouped-by-order row) — all are updated together. */
+  pageId: string | string[];
   status: OrderStatus;
   onUpdated?: (status: OrderStatus) => void;
 }
@@ -32,12 +33,17 @@ export function StatusSelect({ ledger, pageId, status, onUpdated }: StatusSelect
     setCurrent(next);
     setUpdating(true);
     try {
-      const res = await fetch(`/api/${ledger}/event/status`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageId, status: next }),
-      });
-      if (!res.ok) throw new Error();
+      const pageIds = Array.isArray(pageId) ? pageId : [pageId];
+      const results = await Promise.all(
+        pageIds.map((id) =>
+          fetch(`/api/${ledger}/event/status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pageId: id, status: next }),
+          })
+        )
+      );
+      if (results.some((res) => !res.ok)) throw new Error();
       onUpdated?.(next);
     } catch {
       setCurrent(previous);
