@@ -33,8 +33,19 @@ function lastMonthRange(): DateRange {
   };
 }
 
+// 4月始まり〜翌3月末の年度（日本の会計・年度の一般的な区切り）。
+// offsetYears=0で今年度、1で前年度、というように遡れる。
+function fiscalYearRange(offsetYears: number): DateRange {
+  const now = new Date();
+  const currentFyStartYear = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  const startYear = currentFyStartYear - offsetYears;
+  return { from: `${startYear}-04-01`, to: `${startYear + 1}-03-31` };
+}
+
 const PRESETS: { label: string; range: DateRange }[] = [
   { label: "全期間", range: {} },
+  { label: "今年度", range: fiscalYearRange(0) },
+  { label: "前年度", range: fiscalYearRange(1) },
   { label: "今月", range: thisMonthRange() },
   { label: "先月", range: lastMonthRange() },
 ];

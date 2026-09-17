@@ -76,7 +76,11 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
           <KpiCards kpi={summary.kpi} rangeStart={summary.rangeStart} rangeEnd={summary.rangeEnd} />
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <SalesChart data={summary.monthlyStats} />
+              <SalesChart
+                data={summary.monthlyStats}
+                rangeStart={summary.rangeStart}
+                rangeEnd={summary.rangeEnd}
+              />
             </div>
             <ProductRanking data={summary.productRanking} />
           </div>

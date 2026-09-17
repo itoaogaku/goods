@@ -15,14 +15,16 @@ import type { MonthlyStat } from "@/lib/types";
 
 interface SalesChartProps {
   data: MonthlyStat[];
+  rangeStart: string;
+  rangeEnd: string | null;
 }
 
-export function SalesChart({ data }: SalesChartProps) {
+export function SalesChart({ data, rangeStart, rangeEnd }: SalesChartProps) {
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-semibold text-foreground">
-          月別売上推移（2025年3月〜）
+          月別売上推移（{rangeStart} 〜 {rangeEnd ?? "現在"}）
         </CardTitle>
       </CardHeader>
       <CardContent className="h-72">
