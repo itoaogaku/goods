@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { queryAllEvents } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
 import { isLedger, LEDGER_CONFIG, scopeEventTypes, SALE_EVENT_TYPES } from "@/lib/ledger";
-import { compareProductNames } from "@/lib/utils";
+import { compareProductNames, isTestProduct } from "@/lib/utils";
 import type { CustomerMatrixResponse, CustomerMatrixRow, Location } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -100,6 +100,8 @@ export async function GET(
     for (const record of records) {
       // キャンセルされた取引は実際には成立していないので在庫・売上を動かさない。
       if (record.status === "キャンセル") continue;
+      // Wixの決済動作確認用の「〜テスト」商品は実在庫・実売上ではないので除外する。
+      if (isTestProduct(record.productName)) continue;
 
       if (record.eventType === "拠点間移動") {
         if (record.location === location) {

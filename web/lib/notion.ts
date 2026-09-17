@@ -9,6 +9,7 @@ import type {
   PageObjectResponse,
 } from "@notionhq/client/build/src/api-endpoints";
 import { generateLineId, generateTransactionId } from "./ids";
+import { isTestProduct } from "./utils";
 import type {
   EventType,
   InventoryEvent,
@@ -294,6 +295,8 @@ export async function computeStockBalances(ledger: Ledger): Promise<StockBalance
   for (const event of events) {
     // キャンセルされた取引は実際には成立していないので在庫を動かさない。
     if (event.status === "キャンセル") continue;
+    // Wixの決済動作確認用の「〜テスト」商品は実在庫ではないので除外する。
+    if (isTestProduct(event.productName)) continue;
 
     if (STOCK_IN_TYPES.includes(event.eventType)) {
       add(event.productName, event.location, event.quantity, event.quantity);

@@ -17,6 +17,11 @@ export function formatNumber(amount: number): string {
   return new Intl.NumberFormat("ja-JP").format(amount);
 }
 
+/** Wixの決済動作確認用に作られた「〜テスト」商品は実商品ではないので、料金表・在庫・集計などの表示から除外する。 */
+export function isTestProduct(productName: string): boolean {
+  return productName.includes("テスト");
+}
+
 // Larger sizes first, matching how the shop wants sized products listed —
 // plain alphabetical order would put "XL" and "XS" after "S", between
 // unrelated products.

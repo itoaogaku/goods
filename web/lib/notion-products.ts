@@ -6,7 +6,7 @@ import {
 } from "@notionhq/client";
 import type { PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { computeStockBalances, getNotionClient, withNotionRetry } from "./notion";
-import { compareProductNames } from "./utils";
+import { compareProductNames, isTestProduct } from "./utils";
 import type { ProductPriceEntry } from "./types";
 
 /**
@@ -96,10 +96,9 @@ async function queryAllProducts(notion: Client): Promise<ProductPriceEntry[]> {
 export async function listProducts(): Promise<ProductPriceEntry[]> {
   const notion = getNotionClient();
   const [allEntries, balances] = await Promise.all([queryAllProducts(notion), computeStockBalances("acc")]);
-  // Wixの決済動作確認用に作られた「〜テスト」商品は実商品ではないので、
-  // 料金表一覧・商品名の入力候補には出さない（Notion上のデータ自体は
-  // 触らないので、Wix同期の重複作成判定には影響しない — fetchExistingProducts参照）。
-  const entries = allEntries.filter((e) => !e.productName.includes("テスト"));
+  // Notion上のデータ自体は触らないので、Wix同期の重複作成判定には影響しない
+  // （fetchExistingProducts参照）。
+  const entries = allEntries.filter((e) => !isTestProduct(e.productName));
 
   const firstStockInByProduct = new Map<string, string | null>();
   for (const b of balances) {

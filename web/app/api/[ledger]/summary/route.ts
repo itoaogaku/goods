@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { queryAllEvents, SALES_DATA_SINCE } from "@/lib/notion";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
 import { isLedger, scopeEventTypes, SALE_EVENT_TYPES } from "@/lib/ledger";
+import { isTestProduct } from "@/lib/utils";
 import type { MonthlyStat, ProductRankingEntry, SalesSummary } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,8 @@ export async function GET(
     for (const record of records) {
       // キャンセルされた取引は実際には成立していないので売上・経費に含めない。
       if (record.status === "キャンセル") continue;
+      // Wixの決済動作確認用の「〜テスト」商品は実売上ではないので除外する。
+      if (isTestProduct(record.productName)) continue;
 
       if (record.eventType === "送料") {
         shippingRevenue += record.totalAmount;
