@@ -92,7 +92,7 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
       <PendingShipmentsPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <StockTable ledger={ledger} refreshKey={refreshKey} />
       <ExpensePanel ledger={ledger} refreshKey={refreshKey} />
-      {/* 顧客別集計はナビの「顧客別集計」タブ（両台帳を切り替え可能）に
+      {/* 顧客別集計・分析は、この台帳のサブナビ（顧客別集計／分析）に
           専用ページがあるため、ここでは重複表示しない。 */}
       {/* PurchaseOrderPanel (発注一覧) is hidden for now — see inventory-forms.tsx */}
       <InventoryForms ledger={ledger} onChanged={handleChanged} />
