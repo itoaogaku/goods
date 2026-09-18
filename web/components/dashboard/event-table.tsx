@@ -226,9 +226,9 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
                       {record.destinationLocation ? ` → ${record.destinationLocation}` : ""}
                     </TableCell>
                   )}
-                  <TableCell className="max-w-48">
-                    <div className="flex items-center gap-1.5">
-                      <span className="min-w-0 truncate">{record.productName}</span>
+                  <TableCell className="w-40 max-w-40 whitespace-normal align-top">
+                    <div className="flex items-start gap-1.5">
+                      <span className="min-w-0 break-words text-xs leading-snug">{record.productName}</span>
                       {record.originalValues && (
                         <Badge variant="blue" className="shrink-0 whitespace-nowrap">
                           編集済み
