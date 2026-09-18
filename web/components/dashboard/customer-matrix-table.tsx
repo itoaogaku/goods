@@ -53,7 +53,17 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
   const [jumpDate, setJumpDate] = useState("");
   const [jumpMessage, setJumpMessage] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<DateRange>({});
+  const [showArchivedColumns, setShowArchivedColumns] = useState(false);
   const rowRefs = useRef(new Map<string, HTMLTableRowElement>());
+
+  // Adjusting state during render (not in an effect) when the selected
+  // location changes, per https://react.dev/learn/you-might-not-need-an-effect —
+  // collapses the archive back down when switching location.
+  const [lastLocation, setLastLocation] = useState(location);
+  if (location !== lastLocation) {
+    setLastLocation(location);
+    setShowArchivedColumns(false);
+  }
 
   // 期間を絞り込んでも残高の計算（在庫の推移）は全履歴が必要なので、
   // サーバー側の取得・計算は変えず、表示する行と合計金額だけを
@@ -72,6 +82,18 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
     }),
     { productRevenue: 0, shippingRevenue: 0, total: 0 }
   );
+
+  // data.rows is newest-first and unaffected by the date-range filter above,
+  // so its first row always carries each product's true current balance —
+  // used here (not the filtered `rows`) so archiving reflects today's real
+  // stock regardless of which period is being viewed. Columns at exactly 0
+  // move to the far right and collapse behind a toggle, matching 現在庫's
+  // own archive treatment (see stock-table.tsx).
+  const latestRow = data?.rows[0];
+  const currentBalance = (col: string) => latestRow?.products[col]?.balance ?? 0;
+  const activeColumns = (data?.columns ?? []).filter((c) => currentBalance(c) !== 0);
+  const archivedColumns = (data?.columns ?? []).filter((c) => currentBalance(c) === 0);
+  const displayColumns = showArchivedColumns ? [...activeColumns, ...archivedColumns] : activeColumns;
 
   useEffect(() => {
     let cancelled = false;
@@ -177,6 +199,20 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
           </div>
         )}
 
+        {archivedColumns.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="self-start"
+            onClick={() => setShowArchivedColumns((v) => !v)}
+          >
+            {showArchivedColumns
+              ? "アーカイブを隠す"
+              : `アーカイブを表示（${location}で現在庫0の${archivedColumns.length}商品）`}
+          </Button>
+        )}
+
         {data && (
           // Table's own wrapper div (components/ui/table.tsx) also sets
           // overflow-auto, which per the CSS spec makes IT a scroll
@@ -196,7 +232,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                   <TableHead className="sticky top-0 left-[224px] z-30 w-28 whitespace-nowrap bg-background">
                     日時
                   </TableHead>
-                  {data.columns.map((col) => (
+                  {displayColumns.map((col) => (
                     <TableHead
                       key={col}
                       className="sticky top-0 z-20 h-32 max-h-40 whitespace-normal border-l border-border bg-background align-bottom [text-orientation:mixed] [writing-mode:vertical-rl]"
@@ -239,7 +275,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                     >
                       {row.orderDate.slice(0, 10)}
                     </TableCell>
-                    {data.columns.map((col) => {
+                    {displayColumns.map((col) => {
                       const cell = row.products[col];
                       return (
                         <TableCell
@@ -267,7 +303,7 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                 ))}
                 {!loading && rows.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={data.columns.length + 7} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={displayColumns.length + 7} className="py-8 text-center text-muted-foreground">
                       データがありません
                     </TableCell>
                   </TableRow>
