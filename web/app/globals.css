@@ -56,3 +56,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* iOS Safariの<input type="date">は、端末の言語設定が和暦（令和8年9月18日
+   → 表示上は "R8/09/18" など）になっていると、値の表示幅が入力欄自体の
+   幅より広くなり、角丸の枠からはみ出して見えることがある。見た目上の
+   はみ出しを枠内に収める。 */
+input[type="date"] {
+  overflow: hidden;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
