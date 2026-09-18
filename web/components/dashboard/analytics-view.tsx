@@ -194,25 +194,25 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background align-bottom">
+                <TableHead rowSpan={2} className="sticky top-0 left-0 z-20 w-32 bg-background px-2 align-bottom">
                   商品名
                 </TableHead>
-                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background text-right align-bottom">
+                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background px-2 text-right align-bottom">
                   仕入れ数
                 </TableHead>
-                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background text-right align-bottom">
+                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background px-2 text-right align-bottom">
                   棚卸調整
                 </TableHead>
                 {locations.map((loc) => (
                   <TableHead
                     key={loc}
                     colSpan={colsPerLocation}
-                    className="sticky top-0 z-10 border-l border-border bg-background text-center"
+                    className="sticky top-0 z-10 border-l border-border bg-background px-1 text-center"
                   >
                     {loc}
                   </TableHead>
                 ))}
-                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background text-right align-bottom">
+                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background px-2 text-right align-bottom">
                   ズレ
                 </TableHead>
               </TableRow>
@@ -222,15 +222,15 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                     {categories.map((c) => (
                       <TableHead
                         key={`${loc}-${c}`}
-                        className="sticky top-10 z-10 whitespace-nowrap border-l border-border bg-background text-right text-xs"
+                        className="sticky top-10 z-10 whitespace-nowrap border-l border-border bg-background px-1.5 text-right text-xs"
                       >
                         {saleCategoryLabel(c)}
                       </TableHead>
                     ))}
-                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background text-right text-xs">
+                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs">
                       販売数計
                     </TableHead>
-                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background text-right text-xs">
+                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs">
                       在庫数
                     </TableHead>
                   </Fragment>
@@ -240,15 +240,21 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
             <TableBody>
               {entries.map((entry) => (
                 <TableRow key={entry.productName}>
-                  <TableCell className="max-w-48 truncate font-medium">{entry.productName}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNumber(entry.purchasedQuantity)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatNumber(entry.adjustmentQuantity)}</TableCell>
+                  <TableCell className="sticky left-0 z-10 w-32 whitespace-normal break-words bg-card px-2 py-2 align-top text-xs font-medium">
+                    {entry.productName}
+                  </TableCell>
+                  <TableCell className="px-2 py-2 text-right text-xs tabular-nums">
+                    {formatNumber(entry.purchasedQuantity)}
+                  </TableCell>
+                  <TableCell className="px-2 py-2 text-right text-xs tabular-nums">
+                    {formatNumber(entry.adjustmentQuantity)}
+                  </TableCell>
                   {entry.locations.map((loc) => (
                     <Fragment key={loc.location}>
                       {loc.breakdown.map((b) => (
                         <TableCell
                           key={`${entry.productName}-${loc.location}-${b.eventType}`}
-                          className="border-l border-border text-right text-xs tabular-nums"
+                          className="border-l border-border px-1.5 py-1.5 text-right text-xs tabular-nums"
                         >
                           {b.quantity === 0 ? (
                             <span className="text-muted-foreground">―</span>
@@ -260,18 +266,18 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                           )}
                         </TableCell>
                       ))}
-                      <TableCell className="text-right text-xs font-medium tabular-nums">
+                      <TableCell className="px-1.5 py-1.5 text-right text-xs font-medium tabular-nums">
                         <div className="flex flex-col">
                           <span>{formatNumber(loc.totalQuantity)}</span>
                           <span className="text-muted-foreground">{formatJPY(loc.totalAmount)}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="px-1.5 py-1.5 text-right text-xs tabular-nums">
                         {loc.stock < 0 ? <Badge variant="destructive">{formatNumber(loc.stock)}</Badge> : formatNumber(loc.stock)}
                       </TableCell>
                     </Fragment>
                   ))}
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className="px-2 py-2 text-right text-xs tabular-nums">
                     {entry.discrepancy !== 0 ? (
                       <Badge variant="destructive">{formatNumber(entry.discrepancy)}</Badge>
                     ) : (
