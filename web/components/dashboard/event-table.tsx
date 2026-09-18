@@ -189,7 +189,11 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="overflow-x-auto rounded-md border border-border">
+        {/* [&>div]:overflow-visible cancels Table's own inner overflow-auto
+            wrapper so this div is unambiguously the one horizontal-scroll
+            container "sticky right-0" (操作 column) refers to — same fix as
+            the sticky headers on the 分析 tab's tables. */}
+        <div className="overflow-x-auto rounded-md border border-border [&>div]:overflow-visible">
           <Table>
             <TableHeader>
               <TableRow>
@@ -203,7 +207,9 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
                 <TableHead className="text-right">合計金額</TableHead>
                 <TableHead>ステータス</TableHead>
                 <TableHead>備考</TableHead>
-                <TableHead>操作</TableHead>
+                <TableHead className="sticky right-0 z-10 border-l border-border bg-background text-center">
+                  操作
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -244,7 +250,7 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
                     />
                   </TableCell>
                   <TableCell className="max-w-32 truncate text-muted-foreground">{record.memo}</TableCell>
-                  <TableCell>
+                  <TableCell className="sticky right-0 z-10 border-l border-border bg-card text-center">
                     <EditEventDialog ledger={ledger} event={record} onSaved={onChanged} />
                   </TableCell>
                 </TableRow>
