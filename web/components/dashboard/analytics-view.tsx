@@ -169,6 +169,13 @@ function saleCategoryLabel(eventType: EventType): string {
   return eventType;
 }
 
+// 拠点ごとに列の背景色を変えて、水上村/町田（あるいは陸上部/購買会）の
+// 区切りをひと目で分かりやすくする。拠点が増えても崩れないよう循環させる。
+const LOCATION_TINTS = ["bg-sky-50", "bg-amber-50", "bg-violet-50", "bg-lime-50"];
+function locationTint(index: number): string {
+  return LOCATION_TINTS[index % LOCATION_TINTS.length];
+}
+
 function StockReconciliationTable({ entries }: { entries: StockReconciliationEntry[] }) {
   const locations = entries[0]?.locations.map((l) => l.location) ?? [];
   const categories = entries[0]?.locations[0]?.breakdown.map((b) => b.eventType) ?? [];
@@ -221,11 +228,14 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                 >
                   棚卸調整
                 </TableHead>
-                {locations.map((loc) => (
+                {locations.map((loc, i) => (
                   <TableHead
                     key={loc}
                     colSpan={colsPerLocation}
-                    className="sticky top-0 z-10 border-l border-border bg-background px-1 text-center font-semibold text-foreground"
+                    className={cn(
+                      "sticky top-0 z-10 border-l border-border px-1 text-center font-semibold text-foreground",
+                      locationTint(i)
+                    )}
                   >
                     {loc}
                   </TableHead>
@@ -238,20 +248,33 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                 </TableHead>
               </TableRow>
               <TableRow>
-                {locations.map((loc) => (
+                {locations.map((loc, i) => (
                   <Fragment key={loc}>
                     {categories.map((c) => (
                       <TableHead
                         key={`${loc}-${c}`}
-                        className="sticky top-10 z-10 whitespace-nowrap border-l border-border bg-background px-1.5 text-right text-xs font-semibold text-foreground"
+                        className={cn(
+                          "sticky top-10 z-10 whitespace-nowrap border-l border-border px-1.5 text-right text-xs font-semibold text-foreground",
+                          locationTint(i)
+                        )}
                       >
                         {saleCategoryLabel(c)}
                       </TableHead>
                     ))}
-                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs font-semibold text-foreground">
+                    <TableHead
+                      className={cn(
+                        "sticky top-10 z-10 whitespace-nowrap px-1.5 text-right text-xs font-semibold text-foreground",
+                        locationTint(i)
+                      )}
+                    >
                       販売数計
                     </TableHead>
-                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs font-semibold text-foreground">
+                    <TableHead
+                      className={cn(
+                        "sticky top-10 z-10 whitespace-nowrap px-1.5 text-right text-xs font-semibold text-foreground",
+                        locationTint(i)
+                      )}
+                    >
                       在庫数
                     </TableHead>
                   </Fragment>
@@ -270,12 +293,15 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                   <TableCell className="px-2 py-2 text-right text-xs tabular-nums">
                     {formatNumber(entry.adjustmentQuantity)}
                   </TableCell>
-                  {entry.locations.map((loc) => (
+                  {entry.locations.map((loc, i) => (
                     <Fragment key={loc.location}>
                       {loc.breakdown.map((b) => (
                         <TableCell
                           key={`${entry.productName}-${loc.location}-${b.eventType}`}
-                          className="border-l border-border px-1.5 py-1.5 text-right text-xs tabular-nums"
+                          className={cn(
+                            "border-l border-border px-1.5 py-1.5 text-right text-xs tabular-nums",
+                            locationTint(i)
+                          )}
                         >
                           {b.quantity === 0 ? (
                             <span className="text-foreground/40">―</span>
@@ -287,13 +313,15 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                           )}
                         </TableCell>
                       ))}
-                      <TableCell className="px-1.5 py-1.5 text-right text-xs font-medium tabular-nums">
+                      <TableCell
+                        className={cn("px-1.5 py-1.5 text-right text-xs font-medium tabular-nums", locationTint(i))}
+                      >
                         <div className="flex flex-col">
                           <span className="font-semibold text-foreground">{formatNumber(loc.totalQuantity)}</span>
                           <span className="font-normal text-foreground/70">{formatJPY(loc.totalAmount)}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="px-1.5 py-1.5 text-right text-xs tabular-nums">
+                      <TableCell className={cn("px-1.5 py-1.5 text-right text-xs tabular-nums", locationTint(i))}>
                         {loc.stock < 0 ? <Badge variant="destructive">{formatNumber(loc.stock)}</Badge> : formatNumber(loc.stock)}
                       </TableCell>
                     </Fragment>
