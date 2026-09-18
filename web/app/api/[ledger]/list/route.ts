@@ -52,7 +52,7 @@ export async function GET(
   const pageSize =
     Number.isFinite(pageSizeParam) && pageSizeParam > 0 && pageSizeParam <= 100
       ? pageSizeParam
-      : 25;
+      : 100;
 
   try {
     const result = await queryEventsPage(ledger, {

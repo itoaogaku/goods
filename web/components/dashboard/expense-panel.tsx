@@ -10,9 +10,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatJPY } from "@/lib/utils";
 import type { InventoryEvent, Ledger } from "@/lib/types";
+
+const DEFAULT_VISIBLE_COUNT = 15;
 
 interface ExpensePanelProps {
   ledger: Ledger;
@@ -33,6 +36,16 @@ export function ExpensePanel({ ledger, refreshKey }: ExpensePanelProps) {
   const [records, setRecords] = useState<InventoryEvent[] | null>(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  // Adjusting state during render (not in an effect) when the ledger
+  // changes, per https://react.dev/learn/you-might-not-need-an-effect —
+  // collapses back to the default 15-row view when switching ledgers.
+  const [lastLedger, setLastLedger] = useState(ledger);
+  if (ledger !== lastLedger) {
+    setLastLedger(ledger);
+    setShowAll(false);
+  }
 
   useEffect(() => {
     async function load() {
@@ -61,7 +74,7 @@ export function ExpensePanel({ ledger, refreshKey }: ExpensePanelProps) {
           合計 <span className="font-semibold text-foreground">{formatJPY(total)}</span>
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-3">
         {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="overflow-x-auto rounded-md border border-border">
           <Table>
@@ -75,7 +88,7 @@ export function ExpensePanel({ ledger, refreshKey }: ExpensePanelProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(records ?? []).map((record) => (
+              {(showAll ? (records ?? []) : (records ?? []).slice(0, DEFAULT_VISIBLE_COUNT)).map((record) => (
                 <TableRow key={record.pageId}>
                   <TableCell className="whitespace-nowrap">{record.occurredAt.slice(0, 10)}</TableCell>
                   <TableCell>
@@ -100,6 +113,11 @@ export function ExpensePanel({ ledger, refreshKey }: ExpensePanelProps) {
             </TableBody>
           </Table>
         </div>
+        {records && records.length > DEFAULT_VISIBLE_COUNT && (
+          <Button type="button" variant="outline" size="sm" className="self-start" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "最新15件のみ表示" : `全データを表示（${records.length}件）`}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
