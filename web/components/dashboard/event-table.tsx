@@ -27,18 +27,24 @@ import type { EventListResponse, EventType, InventoryEvent, Ledger, OrderStatus 
 
 const STATUS_OPTIONS: OrderStatus[] = ["未発送", "発送済", "キャンセル", "返金"];
 
-const EVENT_TYPE_VARIANT: Record<EventType, "success" | "warning" | "secondary" | "outline"> = {
-  発注: "outline",
+// 通常販売・送料は元のまま(outline / secondary)。それ以外は種別ごとに
+// 見分けやすいよう別の色を割り当てている(以前はsuccess/warning/
+// secondary/outlineの使い回しで複数の種別が同じ色になっていた)。
+const EVENT_TYPE_VARIANT: Record<
+  EventType,
+  "success" | "warning" | "secondary" | "outline" | "blue" | "violet" | "pink" | "orange" | "indigo" | "cyan" | "rose"
+> = {
+  発注: "blue",
   入庫: "success",
   通常販売: "outline",
-  関係者価格販売: "secondary",
-  プレゼント: "secondary",
-  拠点間移動: "warning",
-  陸上部卸し: "outline",
-  購買会卸し: "outline",
+  関係者価格販売: "violet",
+  プレゼント: "pink",
+  拠点間移動: "orange",
+  陸上部卸し: "indigo",
+  購買会卸し: "cyan",
   棚卸調整: "warning",
   送料: "secondary",
-  経費: "warning",
+  経費: "rose",
 };
 
 interface EventTableProps {
