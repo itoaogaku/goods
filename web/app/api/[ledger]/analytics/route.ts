@@ -2,12 +2,16 @@ import type { NextRequest } from "next/server";
 import { computeStockBalances, queryAllEvents, SALES_DATA_SINCE } from "@/lib/notion";
 import { listProducts } from "@/lib/notion-products";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
-import { isLedger, scopeEventTypes, SALE_EVENT_TYPES } from "@/lib/ledger";
+import { isLedger, LEDGER_CONFIG, scopeEventTypes, SALE_EVENT_TYPES } from "@/lib/ledger";
 import { compareProductNames, isTestProduct } from "@/lib/utils";
 import type {
   AnalyticsResponse,
+  EventType,
+  Location,
+  LocationSalesBreakdown,
   ProductProfitability,
   RevenueBreakdownEntry,
+  StockReconciliationEntry,
   StockTurnoverEntry,
 } from "@/lib/types";
 
@@ -45,9 +49,11 @@ export async function GET(
     const turnoverSinceStr = turnoverSince.toISOString().slice(0, 10);
 
     const saleEventTypes = scopeEventTypes(ledger, SALE_EVENT_TYPES);
-    const [rangeEvents, recentEvents, balances, products] = await Promise.all([
+    const [rangeEvents, recentEvents, allSaleEvents, balances, products] = await Promise.all([
       queryAllEvents(ledger, { dateFrom: rangeStart, dateTo: to, eventTypes: saleEventTypes }),
       queryAllEvents(ledger, { dateFrom: turnoverSinceStr, eventTypes: saleEventTypes }),
+      // 在庫・売上確認表は期間絞り込みに関わらず常に全期間の累計で確認する。
+      queryAllEvents(ledger, { eventTypes: saleEventTypes }),
       computeStockBalances(ledger),
       listProducts(),
     ]);
@@ -133,6 +139,77 @@ export async function GET(
         return a.estimatedDaysRemaining - b.estimatedDaysRemaining;
       });
 
+    // 在庫・売上確認表（仕入れ数＋棚卸調整－全拠点の販売数－全拠点の在庫数が
+    // 0になっているかの確認）。拠点が1つしかない台帳では意味を持たないので
+    // 空配列のままにする。
+    const config = LEDGER_CONFIG[ledger];
+    let stockReconciliation: StockReconciliationEntry[] = [];
+    if (config.locations.length > 1) {
+      const balancesByProduct = new Map<string, Map<Location, (typeof balances)[number]>>();
+      for (const b of balances) {
+        if (isTestProduct(b.productName)) continue;
+        const byLocation = balancesByProduct.get(b.productName) ?? new Map();
+        byLocation.set(b.location, b);
+        balancesByProduct.set(b.productName, byLocation);
+      }
+
+      const salesByProduct = new Map<string, Map<Location, Map<EventType, { quantity: number; amount: number }>>>();
+      for (const e of allSaleEvents) {
+        if (!isUsable(e)) continue;
+        const byLocation = salesByProduct.get(e.productName) ?? new Map();
+        const byType = byLocation.get(e.location) ?? new Map();
+        const agg = byType.get(e.eventType) ?? { quantity: 0, amount: 0 };
+        agg.quantity += e.quantity;
+        agg.amount += e.totalAmount;
+        byType.set(e.eventType, agg);
+        byLocation.set(e.location, byType);
+        salesByProduct.set(e.productName, byLocation);
+      }
+
+      const productNames = new Set([...balancesByProduct.keys(), ...salesByProduct.keys()]);
+
+      stockReconciliation = [...productNames]
+        .map((productName) => {
+          const balByLocation = balancesByProduct.get(productName);
+          const salesByLocation = salesByProduct.get(productName);
+
+          let purchasedQuantity = 0;
+          let adjustmentQuantity = 0;
+          let totalStock = 0;
+          let totalSalesQuantity = 0;
+
+          const locations: LocationSalesBreakdown[] = config.locations.map((location) => {
+            const bal = balByLocation?.get(location);
+            purchasedQuantity += bal?.purchasedQuantity ?? 0;
+            adjustmentQuantity += bal?.adjustmentQuantity ?? 0;
+            const stock = bal?.quantity ?? 0;
+            totalStock += stock;
+
+            const typeAgg = salesByLocation?.get(location);
+            const breakdown = saleEventTypes.map((eventType) => {
+              const agg = typeAgg?.get(eventType) ?? { quantity: 0, amount: 0 };
+              return { eventType, quantity: agg.quantity, amount: agg.amount };
+            });
+            const totalQuantity = breakdown.reduce((sum, b) => sum + b.quantity, 0);
+            const totalAmount = breakdown.reduce((sum, b) => sum + b.amount, 0);
+            totalSalesQuantity += totalQuantity;
+
+            return { location, breakdown, totalQuantity, totalAmount, stock };
+          });
+
+          const discrepancy = purchasedQuantity + adjustmentQuantity - totalSalesQuantity - totalStock;
+
+          return { productName, purchasedQuantity, adjustmentQuantity, locations, discrepancy };
+        })
+        // ズレがある商品を先頭にまとめ、その中・ズレが無いものはそれぞれ商品名順。
+        .sort((a, b) => {
+          const aBad = a.discrepancy !== 0;
+          const bBad = b.discrepancy !== 0;
+          if (aBad !== bBad) return aBad ? -1 : 1;
+          return compareProductNames(a.productName, b.productName);
+        });
+    }
+
     const response: AnalyticsResponse = {
       rangeStart,
       rangeEnd: to ?? null,
@@ -140,6 +217,7 @@ export async function GET(
       revenueByLocation,
       revenueByEventType,
       stockTurnover,
+      stockReconciliation,
     };
 
     return jsonWithCors(origin, response);

@@ -175,6 +175,39 @@ export interface StockTurnoverEntry {
   estimatedDaysRemaining: number | null;
 }
 
+/** One 種別（通常販売/関係者価格販売/プレゼント/卸し）の、ある拠点における累計数量・金額。 */
+export interface SalesBreakdownCategory {
+  eventType: EventType;
+  quantity: number;
+  amount: number;
+}
+
+/** ある商品・ある拠点の、種別ごとの販売内訳と現在庫。在庫・売上確認表の1セル分。 */
+export interface LocationSalesBreakdown {
+  location: Location;
+  breakdown: SalesBreakdownCategory[];
+  totalQuantity: number;
+  totalAmount: number;
+  stock: number;
+}
+
+/**
+ * 分析タブの「在庫・売上確認表」の1商品分の行。仕入れ数＋棚卸調整－全拠点の
+ * 販売数－全拠点の在庫数が0になるか（ズレがないか）を確認するための表で、
+ * 拠点が2つ以上ある台帳（ACC・陸上部）でのみ意味を持つ（1拠点の台帳では空配列）。
+ * 全期間の累計で計算し、分析タブの期間絞り込みの影響は受けない。
+ */
+export interface StockReconciliationEntry {
+  productName: string;
+  /** 全拠点合計の累計仕入れ数（入庫）。 */
+  purchasedQuantity: number;
+  /** 全拠点合計の累計棚卸調整（符号付き）。 */
+  adjustmentQuantity: number;
+  locations: LocationSalesBreakdown[];
+  /** purchasedQuantity + adjustmentQuantity − 全拠点の販売数合計 − 全拠点の在庫数合計。0以外ならズレ。 */
+  discrepancy: number;
+}
+
 export interface AnalyticsResponse {
   rangeStart: string;
   rangeEnd: string | null;
@@ -183,4 +216,6 @@ export interface AnalyticsResponse {
   revenueByEventType: RevenueBreakdownEntry[];
   /** Always computed from the most recent 90 days, independent of rangeStart/rangeEnd above. */
   stockTurnover: StockTurnoverEntry[];
+  /** Always computed from full history, independent of rangeStart/rangeEnd above. Empty when this ledger has only one location. */
+  stockReconciliation: StockReconciliationEntry[];
 }

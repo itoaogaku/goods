@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   Table,
@@ -16,9 +16,11 @@ import { DateRangeFilter, type DateRange } from "@/components/dashboard/date-ran
 import { cn, formatJPY, formatNumber } from "@/lib/utils";
 import type {
   AnalyticsResponse,
+  EventType,
   Ledger,
   ProductProfitability,
   RevenueBreakdownEntry,
+  StockReconciliationEntry,
   StockTurnoverEntry,
 } from "@/lib/types";
 
@@ -71,6 +73,9 @@ export function AnalyticsView({ ledger }: AnalyticsViewProps) {
             <BreakdownCard title="拠点別の売上構成" entries={data.revenueByLocation} />
             <BreakdownCard title="種別ごとの売上構成" entries={data.revenueByEventType} />
           </div>
+          {data.stockReconciliation.length > 0 && (
+            <StockReconciliationTable entries={data.stockReconciliation} />
+          )}
           <ProductProfitabilityTable entries={data.productProfitability} />
           <StockTurnoverTable entries={data.stockTurnover} />
         </>
@@ -151,6 +156,140 @@ function BreakdownCard({ title, entries }: { title: string; entries: RevenueBrea
             </div>
           </>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// 通常販売・関係者価格販売は、ユーザーの言葉に合わせて「通常価格」「関係者価格」
+// と表示する。プレゼント・卸し種別（陸上部卸し/購買会卸し）はそのままの名前。
+function saleCategoryLabel(eventType: EventType): string {
+  if (eventType === "通常販売") return "通常価格";
+  if (eventType === "関係者価格販売") return "関係者価格";
+  return eventType;
+}
+
+function StockReconciliationTable({ entries }: { entries: StockReconciliationEntry[] }) {
+  const locations = entries[0]?.locations.map((l) => l.location) ?? [];
+  const categories = entries[0]?.locations[0]?.breakdown.map((b) => b.eventType) ?? [];
+  const badCount = entries.filter((e) => e.discrepancy !== 0).length;
+  // 1拠点あたりの列数: 種別ごとの内訳 + 販売数計 + 在庫数
+  const colsPerLocation = categories.length + 2;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base font-semibold text-foreground">在庫・売上確認表</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">
+          商品ごとに、仕入れ数＋棚卸調整－（全拠点の販売数＋在庫数）が0になっているかを確認する表です（全期間の累計。期間の絞り込みには影響されません）。0でない商品は入力ミスの可能性があるため「ズレ」列に赤字で表示し、一覧の先頭にまとめています。
+        </p>
+        {badCount > 0 ? (
+          <p className="text-sm font-medium text-destructive">{badCount}件の商品でズレが見つかりました。上の方に表示されています。</p>
+        ) : (
+          <p className="text-sm font-medium text-emerald-600">すべての商品でズレはありません。</p>
+        )}
+        <div className="max-h-[70vh] overflow-auto rounded-md border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background align-bottom">
+                  商品名
+                </TableHead>
+                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background text-right align-bottom">
+                  仕入れ数
+                </TableHead>
+                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background text-right align-bottom">
+                  棚卸調整
+                </TableHead>
+                {locations.map((loc) => (
+                  <TableHead
+                    key={loc}
+                    colSpan={colsPerLocation}
+                    className="sticky top-0 z-10 border-l border-border bg-background text-center"
+                  >
+                    {loc}
+                  </TableHead>
+                ))}
+                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background text-right align-bottom">
+                  ズレ
+                </TableHead>
+              </TableRow>
+              <TableRow>
+                {locations.map((loc) => (
+                  <Fragment key={loc}>
+                    {categories.map((c) => (
+                      <TableHead
+                        key={`${loc}-${c}`}
+                        className="sticky top-10 z-10 whitespace-nowrap border-l border-border bg-background text-right text-xs"
+                      >
+                        {saleCategoryLabel(c)}
+                      </TableHead>
+                    ))}
+                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background text-right text-xs">
+                      販売数計
+                    </TableHead>
+                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background text-right text-xs">
+                      在庫数
+                    </TableHead>
+                  </Fragment>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {entries.map((entry) => (
+                <TableRow key={entry.productName}>
+                  <TableCell className="max-w-48 truncate font-medium">{entry.productName}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNumber(entry.purchasedQuantity)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNumber(entry.adjustmentQuantity)}</TableCell>
+                  {entry.locations.map((loc) => (
+                    <Fragment key={loc.location}>
+                      {loc.breakdown.map((b) => (
+                        <TableCell
+                          key={`${entry.productName}-${loc.location}-${b.eventType}`}
+                          className="border-l border-border text-right text-xs tabular-nums"
+                        >
+                          {b.quantity === 0 ? (
+                            <span className="text-muted-foreground">―</span>
+                          ) : (
+                            <div className="flex flex-col">
+                              <span>{formatNumber(b.quantity)}</span>
+                              <span className="text-muted-foreground">{formatJPY(b.amount)}</span>
+                            </div>
+                          )}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right text-xs font-medium tabular-nums">
+                        <div className="flex flex-col">
+                          <span>{formatNumber(loc.totalQuantity)}</span>
+                          <span className="text-muted-foreground">{formatJPY(loc.totalAmount)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {loc.stock < 0 ? <Badge variant="destructive">{formatNumber(loc.stock)}</Badge> : formatNumber(loc.stock)}
+                      </TableCell>
+                    </Fragment>
+                  ))}
+                  <TableCell className="text-right tabular-nums">
+                    {entry.discrepancy !== 0 ? (
+                      <Badge variant="destructive">{formatNumber(entry.discrepancy)}</Badge>
+                    ) : (
+                      "0"
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {entries.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4 + colsPerLocation * locations.length} className="py-8 text-center text-muted-foreground">
+                    データがありません
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );
