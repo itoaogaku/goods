@@ -212,19 +212,19 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
               <TableRow>
                 <TableHead
                   rowSpan={2}
-                  className="sticky top-0 left-0 z-20 w-32 bg-background px-2 align-bottom font-semibold text-foreground"
+                  className="sticky top-0 left-0 z-20 w-24 bg-background px-1.5 text-[11px] align-bottom font-semibold text-foreground"
                 >
                   商品名
                 </TableHead>
                 <TableHead
                   rowSpan={2}
-                  className="sticky top-0 z-10 bg-background px-2 text-right align-bottom font-semibold text-foreground"
+                  className="sticky top-0 z-10 bg-background px-1 text-right text-[11px] align-bottom font-semibold text-foreground"
                 >
                   仕入れ数
                 </TableHead>
                 <TableHead
                   rowSpan={2}
-                  className="sticky top-0 z-10 bg-background px-2 text-right align-bottom font-semibold text-foreground"
+                  className="sticky top-0 z-10 bg-background px-1 text-right text-[11px] align-bottom font-semibold text-foreground"
                 >
                   棚卸調整
                 </TableHead>
@@ -233,7 +233,7 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                     key={loc}
                     colSpan={colsPerLocation}
                     className={cn(
-                      "sticky top-0 z-10 border-l border-border px-1 text-center font-semibold text-foreground",
+                      "sticky top-0 z-10 border-l border-border px-1 text-center text-[11px] font-semibold text-foreground",
                       locationTint(i)
                     )}
                   >
@@ -242,7 +242,7 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                 ))}
                 <TableHead
                   rowSpan={2}
-                  className="sticky top-0 z-10 bg-background px-2 text-right align-bottom font-semibold text-foreground"
+                  className="sticky top-0 z-10 bg-background px-1 text-right text-[11px] align-bottom font-semibold text-foreground"
                 >
                   ズレ
                 </TableHead>
@@ -254,7 +254,7 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                       <TableHead
                         key={`${loc}-${c}`}
                         className={cn(
-                          "sticky top-10 z-10 whitespace-nowrap border-l border-border px-1.5 text-right text-xs font-semibold text-foreground",
+                          "sticky top-10 z-10 whitespace-nowrap border-l border-border px-1 text-right text-[10px] font-semibold text-foreground",
                           locationTint(i)
                         )}
                       >
@@ -263,7 +263,7 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                     ))}
                     <TableHead
                       className={cn(
-                        "sticky top-10 z-10 whitespace-nowrap px-1.5 text-right text-xs font-semibold text-foreground",
+                        "sticky top-10 z-10 whitespace-nowrap px-1 text-right text-[10px] font-semibold text-foreground",
                         locationTint(i)
                       )}
                     >
@@ -271,7 +271,7 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                     </TableHead>
                     <TableHead
                       className={cn(
-                        "sticky top-10 z-10 whitespace-nowrap px-1.5 text-right text-xs font-semibold text-foreground",
+                        "sticky top-10 z-10 whitespace-nowrap px-1 text-right text-[10px] font-semibold text-foreground",
                         locationTint(i)
                       )}
                     >
@@ -284,13 +284,13 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
             <TableBody>
               {entries.map((entry) => (
                 <TableRow key={entry.productName}>
-                  <TableCell className="sticky left-0 z-10 w-32 whitespace-normal break-words bg-card px-2 py-2 align-top text-xs font-medium">
+                  <TableCell className="sticky left-0 z-10 w-24 whitespace-normal break-words bg-card px-1.5 py-1 align-top text-[11px] font-medium leading-snug">
                     {entry.productName}
                   </TableCell>
-                  <TableCell className="px-2 py-2 text-right text-xs tabular-nums">
+                  <TableCell className="px-1 py-1 text-right text-[11px] tabular-nums">
                     {formatNumber(entry.purchasedQuantity)}
                   </TableCell>
-                  <TableCell className="px-2 py-2 text-right text-xs tabular-nums">
+                  <TableCell className="px-1 py-1 text-right text-[11px] tabular-nums">
                     {formatNumber(entry.adjustmentQuantity)}
                   </TableCell>
                   {entry.locations.map((loc, i) => (
@@ -299,7 +299,7 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                         <TableCell
                           key={`${entry.productName}-${loc.location}-${b.eventType}`}
                           className={cn(
-                            "border-l border-border px-1.5 py-1.5 text-right text-xs tabular-nums",
+                            "border-l border-border px-1 py-1 text-right text-[10px] leading-tight tabular-nums",
                             locationTint(i)
                           )}
                         >
@@ -314,19 +314,24 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                         </TableCell>
                       ))}
                       <TableCell
-                        className={cn("px-1.5 py-1.5 text-right text-xs font-medium tabular-nums", locationTint(i))}
+                        className={cn(
+                          "px-1 py-1 text-right text-[10px] font-medium leading-tight tabular-nums",
+                          locationTint(i)
+                        )}
                       >
                         <div className="flex flex-col">
                           <span className="font-semibold text-foreground">{formatNumber(loc.totalQuantity)}</span>
                           <span className="font-normal text-foreground/70">{formatJPY(loc.totalAmount)}</span>
                         </div>
                       </TableCell>
-                      <TableCell className={cn("px-1.5 py-1.5 text-right text-xs tabular-nums", locationTint(i))}>
+                      <TableCell
+                        className={cn("px-1 py-1 text-right text-[11px] tabular-nums", locationTint(i))}
+                      >
                         {loc.stock < 0 ? <Badge variant="destructive">{formatNumber(loc.stock)}</Badge> : formatNumber(loc.stock)}
                       </TableCell>
                     </Fragment>
                   ))}
-                  <TableCell className="px-2 py-2 text-right text-xs tabular-nums">
+                  <TableCell className="px-1 py-1 text-right text-[11px] tabular-nums">
                     {entry.discrepancy !== 0 ? (
                       <Badge variant="destructive">{formatNumber(entry.discrepancy)}</Badge>
                     ) : (
