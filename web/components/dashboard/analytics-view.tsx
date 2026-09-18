@@ -73,11 +73,11 @@ export function AnalyticsView({ ledger }: AnalyticsViewProps) {
             <BreakdownCard title="拠点別の売上構成" entries={data.revenueByLocation} />
             <BreakdownCard title="種別ごとの売上構成" entries={data.revenueByEventType} />
           </div>
+          <ProductProfitabilityTable entries={data.productProfitability} />
+          <StockTurnoverTable entries={data.stockTurnover} />
           {data.stockReconciliation.length > 0 && (
             <StockReconciliationTable entries={data.stockReconciliation} />
           )}
-          <ProductProfitabilityTable entries={data.productProfitability} />
-          <StockTurnoverTable entries={data.stockTurnover} />
         </>
       )}
     </div>
