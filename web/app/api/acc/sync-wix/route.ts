@@ -1,4 +1,4 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { syncWixOrders } from "@/lib/wix-sync";
 import { jsonWithCors, preflightResponse } from "@/lib/cors";
 
@@ -28,7 +28,17 @@ async function handle(request: NextRequest) {
 
 // GET is what Vercel Cron invokes on schedule; POST is what the dashboard's
 // "Wixと同期" button calls. Both run the exact same sync.
+//
+// GET is excluded from proxy.ts's app-wide Basic Auth (Cron requests
+// don't carry those credentials), so it verifies CRON_SECRET here instead —
+// Vercel automatically sends "Authorization: Bearer <CRON_SECRET>" on cron
+// requests once that env var is set. Skipped (as before) if CRON_SECRET
+// isn't configured, so this keeps working without extra setup.
 export async function GET(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
   return handle(request);
 }
 
