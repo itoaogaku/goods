@@ -190,7 +190,16 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
         ) : (
           <p className="text-sm font-medium text-emerald-600">すべての商品でズレはありません。</p>
         )}
-        <div className="max-h-[70vh] overflow-auto rounded-md border border-border">
+        {/* Table's own wrapper div (components/ui/table.tsx) also sets
+            overflow-auto, which per the CSS spec makes IT a scroll container
+            too regardless of whether it ever actually needs to scroll. With
+            no height of its own it never does, so it just silently absorbs
+            "sticky" positioning without ever moving — the header (and the
+            sticky product-name column) would then scroll away instead of
+            staying put. [&>div]:overflow-visible cancels that inner scroll
+            container so this div (the one with a real bounded height) is
+            unambiguously the one sticky positioning refers to. */}
+        <div className="max-h-[70vh] overflow-auto rounded-md border border-border [&>div]:overflow-visible">
           <Table>
             <TableHeader>
               <TableRow>
@@ -323,7 +332,10 @@ function ProductRecoveryTable({ entries }: { entries: ProductRecoveryRate[] }) {
         <p className="text-sm text-muted-foreground">
           商品ごとの仕入れコスト（原価×仕入れ個数）に対して、その商品の売上でどれだけ回収できているかを高い順にランキング表示しています（全期間の累計。期間の絞り込みには影響されません）。原価が未入力、またはまだ仕入れていない商品は回収率が出せないため、末尾に売上順でまとめています。
         </p>
-        <div className="max-h-[60vh] overflow-auto rounded-md border border-border">
+        {/* [&>div]:overflow-visible cancels Table's own inner overflow-auto
+            wrapper so this div is unambiguously what "sticky" refers to —
+            see the longer comment on 在庫・売上確認表 above for why. */}
+        <div className="max-h-[60vh] overflow-auto rounded-md border border-border [&>div]:overflow-visible">
           <Table>
             <TableHeader>
               <TableRow>
@@ -389,7 +401,10 @@ function StockTurnoverTable({ entries }: { entries: StockTurnoverEntry[] }) {
         <p className="text-sm text-muted-foreground">
           直近90日の販売ペースをもとに、現在庫があと何日ほどで無くなりそうかの目安です（期間の絞り込みには影響されません）。売り切れが近い商品ほど上に表示されます。直近90日に販売実績が無い、または在庫が無い商品は下にまとめて表示します。
         </p>
-        <div className="max-h-[60vh] overflow-auto rounded-md border border-border">
+        {/* [&>div]:overflow-visible cancels Table's own inner overflow-auto
+            wrapper so this div is unambiguously what "sticky" refers to —
+            see the longer comment on 在庫・売上確認表 above for why. */}
+        <div className="max-h-[60vh] overflow-auto rounded-md border border-border [&>div]:overflow-visible">
           <Table>
             <TableHeader>
               <TableRow>
