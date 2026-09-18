@@ -472,6 +472,26 @@ export interface EditEventInput {
   memo: string;
 }
 
+const EDIT_HISTORY_PROPERTY = "編集前情報";
+
+/**
+ * editEventLine/revertEventLine both write to 編集前情報, a property that
+ * has to be added by hand in Notion (a rich_text column, same one-time setup
+ * as the select options this app already asks for elsewhere) — it isn't
+ * something the app can create itself via the API. Until it's added, Notion
+ * rejects the whole write with an English "X is not a property that
+ * exists." validation error; this turns that into an actionable Japanese
+ * message instead of surfacing the raw API error to the user.
+ */
+function translateMissingEditHistoryProperty(error: unknown): never {
+  if (error instanceof Error && error.message.includes(`${EDIT_HISTORY_PROPERTY} is not a property that exists`)) {
+    throw new Error(
+      `Notionのデータベースに「${EDIT_HISTORY_PROPERTY}」という列（プロパティ）がまだありません。Notionでこの台帳のデータベースを開き、右端に新しいプロパティを追加してください（プロパティ名: ${EDIT_HISTORY_PROPERTY}、種類: テキスト）。追加後、もう一度お試しください。`
+    );
+  }
+  throw error;
+}
+
 /**
  * Manually corrects an already-recorded line's 商品名/数量/単価/備考 — for
  * customer-requested changes after the fact (size swap, quantity change,
@@ -489,36 +509,40 @@ export async function editEventLine(ledger: Ledger, pageId: string, input: EditE
   const current = await getEvent(ledger, pageId);
   if (!current) throw new Error("指定された取引が見つかりません");
 
-  await withNotionRetry(() =>
-    notion.pages.update({
-      page_id: pageId,
-      properties: {
-        商品名: { rich_text: [{ text: { content: input.productName } }] },
-        数量: { number: input.quantity },
-        単価: { number: input.unitPrice },
-        合計金額: { number: input.unitPrice * input.quantity },
-        備考: { rich_text: [{ text: { content: input.memo } }] },
-        ...(current.originalValues
-          ? {}
-          : {
-              編集前情報: {
-                rich_text: [
-                  {
-                    text: {
-                      content: JSON.stringify({
-                        productName: current.productName,
-                        quantity: current.quantity,
-                        unitPrice: current.unitPrice,
-                        memo: current.memo,
-                      }),
+  try {
+    await withNotionRetry(() =>
+      notion.pages.update({
+        page_id: pageId,
+        properties: {
+          商品名: { rich_text: [{ text: { content: input.productName } }] },
+          数量: { number: input.quantity },
+          単価: { number: input.unitPrice },
+          合計金額: { number: input.unitPrice * input.quantity },
+          備考: { rich_text: [{ text: { content: input.memo } }] },
+          ...(current.originalValues
+            ? {}
+            : {
+                編集前情報: {
+                  rich_text: [
+                    {
+                      text: {
+                        content: JSON.stringify({
+                          productName: current.productName,
+                          quantity: current.quantity,
+                          unitPrice: current.unitPrice,
+                          memo: current.memo,
+                        }),
+                      },
                     },
-                  },
-                ],
-              },
-            }),
-      },
-    })
-  );
+                  ],
+                },
+              }),
+        },
+      })
+    );
+  } catch (error) {
+    translateMissingEditHistoryProperty(error);
+  }
 }
 
 /** Restores a manually-edited line's 商品名/数量/単価/備考 to the values recorded in 編集前情報, then clears that property (back to "not edited"). */
@@ -529,19 +553,23 @@ export async function revertEventLine(ledger: Ledger, pageId: string): Promise<v
   if (!current.originalValues) throw new Error("この取引は編集されていません");
 
   const { productName, quantity, unitPrice, memo } = current.originalValues;
-  await withNotionRetry(() =>
-    notion.pages.update({
-      page_id: pageId,
-      properties: {
-        商品名: { rich_text: [{ text: { content: productName } }] },
-        数量: { number: quantity },
-        単価: { number: unitPrice },
-        合計金額: { number: unitPrice * quantity },
-        備考: { rich_text: [{ text: { content: memo } }] },
-        編集前情報: { rich_text: [] },
-      },
-    })
-  );
+  try {
+    await withNotionRetry(() =>
+      notion.pages.update({
+        page_id: pageId,
+        properties: {
+          商品名: { rich_text: [{ text: { content: productName } }] },
+          数量: { number: quantity },
+          単価: { number: unitPrice },
+          合計金額: { number: unitPrice * quantity },
+          備考: { rich_text: [{ text: { content: memo } }] },
+          編集前情報: { rich_text: [] },
+        },
+      })
+    );
+  } catch (error) {
+    translateMissingEditHistoryProperty(error);
+  }
 }
 
 export interface ReceivePurchaseOrderInput {
