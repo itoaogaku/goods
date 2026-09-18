@@ -27,9 +27,11 @@ export async function GET(
   }
 
   try {
+    // 送料もSALE_EVENT_TYPESには含まれない(在庫を動かさないため)が、
+    // 発送管理の合計金額には注文の送料込み合計を出したいのでここに含める。
     const records = await queryAllEvents(ledger, {
       status: "未発送",
-      eventTypes: scopeEventTypes(ledger, SALE_EVENT_TYPES),
+      eventTypes: scopeEventTypes(ledger, [...SALE_EVENT_TYPES, "送料"]),
     });
     return jsonWithCors(origin, { records });
   } catch (error) {

@@ -25,22 +25,31 @@ interface ShipmentGroup {
   transactionId: string;
   occurredAt: string;
   location: InventoryEvent["location"];
+  /** 梱包・発送する商品の明細（送料は含まない）。 */
   lines: InventoryEvent[];
+  /** ステータス変更を反映する対象の全pageId（商品明細＋送料）。 */
+  allPageIds: string[];
   memo: string;
   status: OrderStatus;
+  /** 送料も含めた、その注文の請求合計。 */
   totalAmount: number;
 }
 
 // 同じ取引ID（1回の注文）の商品明細が複数行に分かれている場合、発送管理
 // では梱包・発送の単位である「注文」ごとに1行へまとめる。ステータスは
 // 同じ注文の全明細で揃っているはず（Wix同期は注文単位で同じ値を書き込む）
-// なので先頭行の値を代表として表示し、変更時は明細の全pageIdに反映する。
+// なので先頭行の値を代表として表示し、変更時は明細の全pageIdに反映する
+// （送料の行も含めないと、商品だけ発送済みにした後も送料の行だけ未発送の
+// まま残り、明細が空のこの注文がこのパネルに残り続けてしまう）。
+// 合計金額には送料の行も加算するが、商品明細（梱包リスト）には出さない。
 function groupByTransaction(records: InventoryEvent[]): ShipmentGroup[] {
   const groups = new Map<string, ShipmentGroup>();
   for (const r of records) {
+    const isProductLine = r.eventType !== "送料";
     const g = groups.get(r.transactionId);
     if (g) {
-      g.lines.push(r);
+      if (isProductLine) g.lines.push(r);
+      g.allPageIds.push(r.pageId);
       g.totalAmount += r.totalAmount;
       if (r.occurredAt < g.occurredAt) g.occurredAt = r.occurredAt;
     } else {
@@ -48,7 +57,8 @@ function groupByTransaction(records: InventoryEvent[]): ShipmentGroup[] {
         transactionId: r.transactionId,
         occurredAt: r.occurredAt,
         location: r.location,
-        lines: [r],
+        lines: isProductLine ? [r] : [],
+        allPageIds: [r.pageId],
         memo: r.memo,
         status: r.status,
         totalAmount: r.totalAmount,
@@ -125,7 +135,7 @@ export function PendingShipmentsPanel({ ledger, refreshKey, onChanged }: Pending
                   <TableCell>
                     <StatusSelect
                       ledger={ledger}
-                      pageId={group.lines.map((line) => line.pageId)}
+                      pageId={group.allPageIds}
                       status={group.status}
                       onUpdated={onChanged}
                     />
