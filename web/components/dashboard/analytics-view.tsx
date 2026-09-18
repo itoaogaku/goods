@@ -194,25 +194,37 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead rowSpan={2} className="sticky top-0 left-0 z-20 w-32 bg-background px-2 align-bottom">
+                <TableHead
+                  rowSpan={2}
+                  className="sticky top-0 left-0 z-20 w-32 bg-background px-2 align-bottom font-semibold text-foreground"
+                >
                   商品名
                 </TableHead>
-                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background px-2 text-right align-bottom">
+                <TableHead
+                  rowSpan={2}
+                  className="sticky top-0 z-10 bg-background px-2 text-right align-bottom font-semibold text-foreground"
+                >
                   仕入れ数
                 </TableHead>
-                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background px-2 text-right align-bottom">
+                <TableHead
+                  rowSpan={2}
+                  className="sticky top-0 z-10 bg-background px-2 text-right align-bottom font-semibold text-foreground"
+                >
                   棚卸調整
                 </TableHead>
                 {locations.map((loc) => (
                   <TableHead
                     key={loc}
                     colSpan={colsPerLocation}
-                    className="sticky top-0 z-10 border-l border-border bg-background px-1 text-center"
+                    className="sticky top-0 z-10 border-l border-border bg-background px-1 text-center font-semibold text-foreground"
                   >
                     {loc}
                   </TableHead>
                 ))}
-                <TableHead rowSpan={2} className="sticky top-0 z-10 bg-background px-2 text-right align-bottom">
+                <TableHead
+                  rowSpan={2}
+                  className="sticky top-0 z-10 bg-background px-2 text-right align-bottom font-semibold text-foreground"
+                >
                   ズレ
                 </TableHead>
               </TableRow>
@@ -222,15 +234,15 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                     {categories.map((c) => (
                       <TableHead
                         key={`${loc}-${c}`}
-                        className="sticky top-10 z-10 whitespace-nowrap border-l border-border bg-background px-1.5 text-right text-xs"
+                        className="sticky top-10 z-10 whitespace-nowrap border-l border-border bg-background px-1.5 text-right text-xs font-semibold text-foreground"
                       >
                         {saleCategoryLabel(c)}
                       </TableHead>
                     ))}
-                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs">
+                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs font-semibold text-foreground">
                       販売数計
                     </TableHead>
-                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs">
+                    <TableHead className="sticky top-10 z-10 whitespace-nowrap bg-background px-1.5 text-right text-xs font-semibold text-foreground">
                       在庫数
                     </TableHead>
                   </Fragment>
@@ -257,19 +269,19 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
                           className="border-l border-border px-1.5 py-1.5 text-right text-xs tabular-nums"
                         >
                           {b.quantity === 0 ? (
-                            <span className="text-muted-foreground">―</span>
+                            <span className="text-foreground/40">―</span>
                           ) : (
                             <div className="flex flex-col">
-                              <span>{formatNumber(b.quantity)}</span>
-                              <span className="text-muted-foreground">{formatJPY(b.amount)}</span>
+                              <span className="font-medium text-foreground">{formatNumber(b.quantity)}</span>
+                              <span className="text-foreground/70">{formatJPY(b.amount)}</span>
                             </div>
                           )}
                         </TableCell>
                       ))}
                       <TableCell className="px-1.5 py-1.5 text-right text-xs font-medium tabular-nums">
                         <div className="flex flex-col">
-                          <span>{formatNumber(loc.totalQuantity)}</span>
-                          <span className="text-muted-foreground">{formatJPY(loc.totalAmount)}</span>
+                          <span className="font-semibold text-foreground">{formatNumber(loc.totalQuantity)}</span>
+                          <span className="font-normal text-foreground/70">{formatJPY(loc.totalAmount)}</span>
                         </div>
                       </TableCell>
                       <TableCell className="px-1.5 py-1.5 text-right text-xs tabular-nums">
