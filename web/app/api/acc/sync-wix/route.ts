@@ -29,8 +29,8 @@ async function handle(request: NextRequest) {
 // GET is what Vercel Cron invokes on schedule; POST is what the dashboard's
 // "Wixと同期" button calls. Both run the exact same sync.
 //
-// GET is excluded from proxy.ts's app-wide Basic Auth (Cron requests
-// don't carry those credentials), so it verifies CRON_SECRET here instead —
+// GET is excluded from proxy.ts's app-wide login-cookie check (Cron
+// requests don't carry that cookie), so it verifies CRON_SECRET here instead —
 // Vercel automatically sends "Authorization: Bearer <CRON_SECRET>" on cron
 // requests once that env var is set. Skipped (as before) if CRON_SECRET
 // isn't configured, so this keeps working without extra setup.
