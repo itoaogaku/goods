@@ -45,6 +45,14 @@ export interface InventoryEvent {
   /** 発注 only, below. */
   poStatus: PurchaseOrderStatus | null;
   receivedQuantity: number;
+  /**
+   * サイズ変更・個数変更などの手動修正で 商品名/数量/単価/備考 を上書きする前の
+   * 値。この取引がまだ一度も手動編集されていなければ null。編集の1回目でだけ
+   * 記録され、以後の再編集では上書きされない（元に戻すボタンが常に本当の
+   * 最初の値に戻せるように）。Wixの自動同期は ステータス/顧客名 しか書き込まない
+   * ので、ここでの手動修正が後続の同期で上書きされることはない。
+   */
+  originalValues: { productName: string; quantity: number; unitPrice: number; memo: string } | null;
 }
 
 export interface MonthlyStat {

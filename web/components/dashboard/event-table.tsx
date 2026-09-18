@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusSelect } from "@/components/dashboard/status-select";
+import { EditEventDialog } from "@/components/dashboard/edit-event-dialog";
 import { formatJPY, formatNumber } from "@/lib/utils";
 import { EVENT_TYPES, LEDGER_CONFIG, scopeEventTypes } from "@/lib/ledger";
 import type { EventListResponse, EventType, InventoryEvent, Ledger, OrderStatus } from "@/lib/types";
@@ -202,6 +203,7 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
                 <TableHead className="text-right">合計金額</TableHead>
                 <TableHead>ステータス</TableHead>
                 <TableHead>備考</TableHead>
+                <TableHead>操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -218,7 +220,16 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
                       {record.destinationLocation ? ` → ${record.destinationLocation}` : ""}
                     </TableCell>
                   )}
-                  <TableCell className="max-w-48 truncate">{record.productName}</TableCell>
+                  <TableCell className="max-w-48">
+                    <div className="flex items-center gap-1.5">
+                      <span className="min-w-0 truncate">{record.productName}</span>
+                      {record.originalValues && (
+                        <Badge variant="blue" className="shrink-0 whitespace-nowrap">
+                          編集済み
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{formatNumber(record.quantity)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatJPY(record.unitPrice)}</TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
@@ -233,11 +244,14 @@ export function EventTable({ ledger, refreshKey, onChanged }: EventTableProps) {
                     />
                   </TableCell>
                   <TableCell className="max-w-32 truncate text-muted-foreground">{record.memo}</TableCell>
+                  <TableCell>
+                    <EditEventDialog ledger={ledger} event={record} onSaved={onChanged} />
+                  </TableCell>
                 </TableRow>
               ))}
               {!loading && records.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={11} className="py-8 text-center text-muted-foreground">
                     条件に一致するデータがありません
                   </TableCell>
                 </TableRow>

@@ -100,6 +100,7 @@ export async function syncWixOrders(): Promise<WixSyncResult> {
             status: line.status ?? "未発送",
             poStatus: line.poStatus ?? null,
             receivedQuantity: line.receivedQuantity ?? 0,
+            originalValues: null,
           });
         } catch (error) {
           errors.push(`${line.lineId}: ${error instanceof Error ? error.message : String(error)}`);

@@ -132,6 +132,27 @@ function getSelectName(prop: NotionProperty | undefined): string | null {
   return prop.select.name;
 }
 
+/** 編集前情報（rich_text, JSON文字列）を安全にパースする。空・不正な形式なら null。 */
+function parseOriginalValues(text: string): InventoryEvent["originalValues"] {
+  if (!text) return null;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as Record<string, unknown>).productName === "string" &&
+      typeof (parsed as Record<string, unknown>).quantity === "number" &&
+      typeof (parsed as Record<string, unknown>).unitPrice === "number" &&
+      typeof (parsed as Record<string, unknown>).memo === "string"
+    ) {
+      return parsed as InventoryEvent["originalValues"];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function pageToInventoryEvent(page: PageObjectResponse): InventoryEvent {
   const p = page.properties;
   return {
@@ -151,6 +172,7 @@ export function pageToInventoryEvent(page: PageObjectResponse): InventoryEvent {
     status: (getSelectName(p["ステータス"]) as OrderStatus | null) ?? "発送済",
     poStatus: getSelectName(p["発注ステータス"]) as PurchaseOrderStatus | null,
     receivedQuantity: getNumber(p["受領済み数量"]),
+    originalValues: parseOriginalValues(getPlainText(p["編集前情報"])),
   };
 }
 
@@ -441,6 +463,85 @@ export async function getEvent(ledger: Ledger, pageId: string): Promise<Inventor
   const page = await withNotionRetry(() => notion.pages.retrieve({ page_id: pageId }));
   if (!isFullPage(page)) return null;
   return pageToInventoryEvent(page);
+}
+
+export interface EditEventInput {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  memo: string;
+}
+
+/**
+ * Manually corrects an already-recorded line's 商品名/数量/単価/備考 — for
+ * customer-requested changes after the fact (size swap, quantity change,
+ * etc.) that aren't a cancellation. Safe to do without the daily Wix sync
+ * clobbering it back: updateSyncedEvent (the sync's only write path for an
+ * existing line) only ever touches ステータス/顧客名, never these fields.
+ *
+ * The very first edit snapshots the line's pre-edit values into 編集前情報;
+ * later edits leave that snapshot alone, so 元に戻す always restores the
+ * true original rather than just undoing the latest edit, and its presence
+ * doubles as the "this line was edited" flag the UI shows a badge for.
+ */
+export async function editEventLine(ledger: Ledger, pageId: string, input: EditEventInput): Promise<void> {
+  const notion = getNotionClient();
+  const current = await getEvent(ledger, pageId);
+  if (!current) throw new Error("指定された取引が見つかりません");
+
+  await withNotionRetry(() =>
+    notion.pages.update({
+      page_id: pageId,
+      properties: {
+        商品名: { rich_text: [{ text: { content: input.productName } }] },
+        数量: { number: input.quantity },
+        単価: { number: input.unitPrice },
+        合計金額: { number: input.unitPrice * input.quantity },
+        備考: { rich_text: [{ text: { content: input.memo } }] },
+        ...(current.originalValues
+          ? {}
+          : {
+              編集前情報: {
+                rich_text: [
+                  {
+                    text: {
+                      content: JSON.stringify({
+                        productName: current.productName,
+                        quantity: current.quantity,
+                        unitPrice: current.unitPrice,
+                        memo: current.memo,
+                      }),
+                    },
+                  },
+                ],
+              },
+            }),
+      },
+    })
+  );
+}
+
+/** Restores a manually-edited line's 商品名/数量/単価/備考 to the values recorded in 編集前情報, then clears that property (back to "not edited"). */
+export async function revertEventLine(ledger: Ledger, pageId: string): Promise<void> {
+  const notion = getNotionClient();
+  const current = await getEvent(ledger, pageId);
+  if (!current) throw new Error("指定された取引が見つかりません");
+  if (!current.originalValues) throw new Error("この取引は編集されていません");
+
+  const { productName, quantity, unitPrice, memo } = current.originalValues;
+  await withNotionRetry(() =>
+    notion.pages.update({
+      page_id: pageId,
+      properties: {
+        商品名: { rich_text: [{ text: { content: productName } }] },
+        数量: { number: quantity },
+        単価: { number: unitPrice },
+        合計金額: { number: unitPrice * quantity },
+        備考: { rich_text: [{ text: { content: memo } }] },
+        編集前情報: { rich_text: [] },
+      },
+    })
+  );
 }
 
 export interface ReceivePurchaseOrderInput {
