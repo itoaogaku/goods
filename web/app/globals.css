@@ -4,24 +4,25 @@
   /* Always render native form controls (date picker, scrollbar, etc.) in
      light mode too, regardless of the OS/browser color-scheme preference. */
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 計測アプリのスクリーンショットを基準にした、落ち着いたティール系の配色。 */
+  --background: #f2f4f2;
+  --foreground: #1b2e2a;
   --card: #ffffff;
-  --card-foreground: #171717;
+  --card-foreground: #1b2e2a;
   --popover: #ffffff;
-  --popover-foreground: #171717;
-  --primary: #16a34a;
+  --popover-foreground: #1b2e2a;
+  --primary: #2f6b60;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
+  --secondary: #e8f1ee;
+  --secondary-foreground: #1b2e2a;
+  --muted: #e8f1ee;
+  --muted-foreground: #6d8079;
+  --accent: #e8f1ee;
+  --accent-foreground: #1b2e2a;
   --destructive: #ef4444;
-  --border: #e4e4e7;
-  --input: #e4e4e7;
-  --ring: #16a34a;
+  --border: #dbe6e2;
+  --input: #dbe6e2;
+  --ring: #2f6b60;
 }
 
 @theme inline {
