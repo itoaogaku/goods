@@ -89,13 +89,13 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
         !error && <p className="text-sm text-muted-foreground">読み込み中…</p>
       )}
 
-      <PendingShipmentsPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
-      <StockTable ledger={ledger} refreshKey={refreshKey} />
-      <ExpensePanel ledger={ledger} refreshKey={refreshKey} />
       {/* 顧客別集計・分析は、この台帳のサブナビ（顧客別集計／分析）に
           専用ページがあるため、ここでは重複表示しない。 */}
       {/* PurchaseOrderPanel (発注一覧) is hidden for now — see inventory-forms.tsx */}
       <InventoryForms ledger={ledger} onChanged={handleChanged} />
+      <PendingShipmentsPanel ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
+      <StockTable ledger={ledger} refreshKey={refreshKey} />
+      <ExpensePanel ledger={ledger} refreshKey={refreshKey} />
       <EventTable ledger={ledger} refreshKey={refreshKey} onChanged={handleChanged} />
       <DedupePanel ledger={ledger} onChanged={handleChanged} />
     </div>
