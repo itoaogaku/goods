@@ -18,7 +18,7 @@ import type {
   AnalyticsResponse,
   EventType,
   Ledger,
-  ProductProfitability,
+  ProductRecoveryRate,
   RevenueBreakdownEntry,
   StockReconciliationEntry,
   StockTurnoverEntry,
@@ -73,7 +73,7 @@ export function AnalyticsView({ ledger }: AnalyticsViewProps) {
             <BreakdownCard title="拠点別の売上構成" entries={data.revenueByLocation} />
             <BreakdownCard title="種別ごとの売上構成" entries={data.revenueByEventType} />
           </div>
-          <ProductProfitabilityTable entries={data.productProfitability} />
+          <ProductRecoveryTable entries={data.productRecovery} />
           <StockTurnoverTable entries={data.stockTurnover} />
           {data.stockReconciliation.length > 0 && (
             <StockReconciliationTable entries={data.stockReconciliation} />
@@ -301,15 +301,15 @@ function StockReconciliationTable({ entries }: { entries: StockReconciliationEnt
   );
 }
 
-function ProductProfitabilityTable({ entries }: { entries: ProductProfitability[] }) {
+function ProductRecoveryTable({ entries }: { entries: ProductRecoveryRate[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base font-semibold text-foreground">商品別利益率ランキング</CardTitle>
+        <CardTitle className="text-base font-semibold text-foreground">商品別回収率ランキング</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-sm text-muted-foreground">
-          選択した期間に販売された商品を、利益率（利益÷売上）が高い順にランキング表示しています。利益は売上−原価（料金表一覧の原価×販売数量）です。原価が未入力の商品は利益率が出せないため、末尾に売上順でまとめています。
+          商品ごとの仕入れコスト（原価×仕入れ個数）に対して、その商品の売上でどれだけ回収できているかを高い順にランキング表示しています（全期間の累計。期間の絞り込みには影響されません）。原価が未入力、またはまだ仕入れていない商品は回収率が出せないため、末尾に売上順でまとめています。
         </p>
         <div className="max-h-[60vh] overflow-auto rounded-md border border-border">
           <Table>
@@ -317,11 +317,11 @@ function ProductProfitabilityTable({ entries }: { entries: ProductProfitability[
               <TableRow>
                 <TableHead className="sticky top-0 z-10 bg-background w-12 text-right">順位</TableHead>
                 <TableHead className="sticky top-0 z-10 bg-background">商品名</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-background text-right">仕入れ数</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-background text-right">仕入れコスト</TableHead>
                 <TableHead className="sticky top-0 z-10 bg-background text-right">販売数量</TableHead>
                 <TableHead className="sticky top-0 z-10 bg-background text-right">売上</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">原価合計</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">利益</TableHead>
-                <TableHead className="sticky top-0 z-10 bg-background text-right">利益率</TableHead>
+                <TableHead className="sticky top-0 z-10 bg-background text-right">回収率</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -329,29 +329,26 @@ function ProductProfitabilityTable({ entries }: { entries: ProductProfitability[
                 <TableRow key={p.productName}>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{i + 1}</TableCell>
                   <TableCell className="max-w-56 truncate font-medium">{p.productName}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNumber(p.purchasedQuantity)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {p.purchaseCost === null ? "―" : formatJPY(p.purchaseCost)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{formatNumber(p.quantitySold)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatJPY(p.revenue)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {p.totalCost === null ? "―" : formatJPY(p.totalCost)}
-                  </TableCell>
                   <TableCell
                     className={cn(
                       "text-right tabular-nums font-medium",
-                      p.profit !== null && p.profit < 0 && "text-destructive",
-                      p.profit !== null && p.profit > 0 && "text-emerald-600"
+                      p.recoveryPercent !== null && p.recoveryPercent >= 100 && "text-emerald-600"
                     )}
                   >
-                    {p.profit === null ? "―" : formatJPY(p.profit)}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums font-medium">
-                    {p.marginPercent === null ? "―" : `${p.marginPercent.toFixed(1)}%`}
+                    {p.recoveryPercent === null ? "―" : `${p.recoveryPercent.toFixed(1)}%`}
                   </TableCell>
                 </TableRow>
               ))}
               {entries.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                    この期間の販売データがありません
+                    販売データがありません
                   </TableCell>
                 </TableRow>
               )}

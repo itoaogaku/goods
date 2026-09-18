@@ -9,7 +9,7 @@ import type {
   EventType,
   Location,
   LocationSalesBreakdown,
-  ProductProfitability,
+  ProductRecoveryRate,
   RevenueBreakdownEntry,
   StockReconciliationEntry,
   StockTurnoverEntry,
@@ -61,31 +61,41 @@ export async function GET(
     const isUsable = (e: { status: string; productName: string }) =>
       e.status !== "キャンセル" && !isTestProduct(e.productName);
 
-    // 商品別の利益率分析
+    // 商品別の仕入れコスト回収率（原価×仕入れ個数を仕入れコストとして、その
+    // 商品の売上でどれだけ回収できているか）。仕入れコストは全期間に一度きり
+    // 発生するものなので、在庫・売上確認表と同じく常に全期間の累計で計算し、
+    // 分析タブの期間絞り込みの影響は受けない。
     const costByProduct = new Map(products.map((p) => [p.productName, p.costPrice]));
-    const profitAgg = new Map<string, { quantitySold: number; revenue: number }>();
-    for (const e of rangeEvents) {
+    const purchasedByProduct = new Map<string, number>();
+    for (const b of balances) {
+      if (isTestProduct(b.productName)) continue;
+      purchasedByProduct.set(b.productName, (purchasedByProduct.get(b.productName) ?? 0) + b.purchasedQuantity);
+    }
+    const recoverySalesAgg = new Map<string, { quantitySold: number; revenue: number }>();
+    for (const e of allSaleEvents) {
       if (!isUsable(e)) continue;
-      const agg = profitAgg.get(e.productName) ?? { quantitySold: 0, revenue: 0 };
+      const agg = recoverySalesAgg.get(e.productName) ?? { quantitySold: 0, revenue: 0 };
       agg.quantitySold += e.quantity;
       agg.revenue += e.totalAmount;
-      profitAgg.set(e.productName, agg);
+      recoverySalesAgg.set(e.productName, agg);
     }
-    const productProfitability: ProductProfitability[] = [...profitAgg.entries()]
-      .map(([productName, { quantitySold, revenue }]) => {
+    const recoveryProductNames = new Set([...purchasedByProduct.keys(), ...recoverySalesAgg.keys()]);
+    const productRecovery: ProductRecoveryRate[] = [...recoveryProductNames]
+      .map((productName) => {
+        const purchasedQuantity = purchasedByProduct.get(productName) ?? 0;
         const unitCost = costByProduct.get(productName) ?? null;
-        const totalCost = unitCost !== null ? unitCost * quantitySold : null;
-        const profit = totalCost !== null ? revenue - totalCost : null;
-        const marginPercent = profit !== null && revenue > 0 ? (profit / revenue) * 100 : null;
-        return { productName, quantitySold, revenue, unitCost, totalCost, profit, marginPercent };
+        const purchaseCost = unitCost !== null ? unitCost * purchasedQuantity : null;
+        const { quantitySold, revenue } = recoverySalesAgg.get(productName) ?? { quantitySold: 0, revenue: 0 };
+        const recoveryPercent = purchaseCost !== null && purchaseCost > 0 ? (revenue / purchaseCost) * 100 : null;
+        return { productName, purchasedQuantity, unitCost, purchaseCost, quantitySold, revenue, recoveryPercent };
       })
-      // 利益率が高い順（ランキング）。原価未入力で利益率が出せない商品は
-      // 末尾にまとめ、その中は売上順にする。
+      // 回収率が高い順（ランキング）。原価未入力・未仕入れで回収率が出せない
+      // 商品は末尾にまとめ、その中は売上順にする。
       .sort((a, b) => {
-        if (a.marginPercent === null && b.marginPercent === null) return b.revenue - a.revenue;
-        if (a.marginPercent === null) return 1;
-        if (b.marginPercent === null) return -1;
-        return b.marginPercent - a.marginPercent;
+        if (a.recoveryPercent === null && b.recoveryPercent === null) return b.revenue - a.revenue;
+        if (a.recoveryPercent === null) return 1;
+        if (b.recoveryPercent === null) return -1;
+        return b.recoveryPercent - a.recoveryPercent;
       });
 
     // 拠点別・種別ごとの売上構成
@@ -213,7 +223,7 @@ export async function GET(
     const response: AnalyticsResponse = {
       rangeStart,
       rangeEnd: to ?? null,
-      productProfitability,
+      productRecovery,
       revenueByLocation,
       revenueByEventType,
       stockTurnover,

@@ -143,19 +143,26 @@ export interface ProductPriceEntry {
   coopWholesalePrice: number | null;
 }
 
-/** One product's row in the 分析 tab's 商品別利益率 table (see /api/[ledger]/analytics). */
-export interface ProductProfitability {
+/**
+ * One product's row in the 分析 tab's 商品別回収率ランキング table (see
+ * /api/[ledger]/analytics). 常に全期間の累計で計算し、分析タブの期間絞り込み
+ * の影響は受けない（在庫・売上確認表と同じ考え方 — 仕入れコストは全期間で
+ * 一度きり発生するものなので、期間で切ると意味がなくなる）。
+ */
+export interface ProductRecoveryRate {
   productName: string;
-  quantitySold: number;
-  revenue: number;
+  /** 全期間累計の仕入れ個数（入庫、全拠点合計）。 */
+  purchasedQuantity: number;
   /** 料金表一覧の原価（単価）。未入力の商品は null。 */
   unitCost: number | null;
-  /** unitCost × quantitySold。unitCostがnullなら null。 */
-  totalCost: number | null;
-  /** revenue − totalCost。totalCostがnullなら null。 */
-  profit: number | null;
-  /** profit ÷ revenue × 100。revenueが0またはprofitがnullなら null。 */
-  marginPercent: number | null;
+  /** unitCost × purchasedQuantity（仕入れコスト）。unitCostがnullなら null。 */
+  purchaseCost: number | null;
+  /** 全期間累計の販売数量（全拠点合計）。 */
+  quantitySold: number;
+  /** 全期間累計の売上（全拠点合計）。 */
+  revenue: number;
+  /** revenue ÷ purchaseCost × 100。purchaseCostがnullまたは0なら null。 */
+  recoveryPercent: number | null;
 }
 
 /** One slice of the 分析 tab's 拠点別/種別別売上構成 breakdown. */
@@ -211,7 +218,7 @@ export interface StockReconciliationEntry {
 export interface AnalyticsResponse {
   rangeStart: string;
   rangeEnd: string | null;
-  productProfitability: ProductProfitability[];
+  productRecovery: ProductRecoveryRate[];
   revenueByLocation: RevenueBreakdownEntry[];
   revenueByEventType: RevenueBreakdownEntry[];
   /** Always computed from the most recent 90 days, independent of rangeStart/rangeEnd above. */
