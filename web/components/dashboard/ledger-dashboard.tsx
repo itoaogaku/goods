@@ -57,7 +57,7 @@ export function LedgerDashboard({ ledger }: LedgerDashboardProps) {
           <h1 className="text-xl font-semibold">{config.label}</h1>
           <p className="text-sm text-muted-foreground">
             2025年3月以降の販売実績・現在庫（Notion連携）
-            {ledger === "acc" && "。Wixの注文は30分ごとに自動取り込みされます"}
+            {ledger === "acc" && "。Wixの注文は1日1回自動取り込みされます（すぐ反映したい場合は「今すぐWixと同期」を押してください）"}
           </p>
         </div>
         {ledger === "acc" && <WixSyncButton onSynced={handleChanged} />}
