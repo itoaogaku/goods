@@ -39,17 +39,28 @@ export async function GET(
     // the branches below. A stock-in's purchase cost is recorded as its own
     // 経費 row (see /api/[ledger]/stock-in), so this single event type
     // covers both hand-entered expenses and procurement cost.
-    const records = await queryAllEvents(ledger, {
-      dateFrom: rangeStart,
-      dateTo: to,
-      eventTypes: scopeEventTypes(ledger, [...SALE_EVENT_TYPES, "送料", "経費"]),
-    });
+    // 未対応注文数（pendingCount）は発送管理パネル（/api/[ledger]/pending-shipments）
+    // と同じ「日付の絞り込み無し・取引ID単位」で数える別クエリにし、
+    // 選んだ表示期間に関わらず常にそのパネルの件数と一致するようにする。
+    const [records, pendingRecords] = await Promise.all([
+      queryAllEvents(ledger, {
+        dateFrom: rangeStart,
+        dateTo: to,
+        eventTypes: scopeEventTypes(ledger, [...SALE_EVENT_TYPES, "送料", "経費"]),
+      }),
+      queryAllEvents(ledger, {
+        status: "未発送",
+        eventTypes: scopeEventTypes(ledger, SALE_EVENT_TYPES),
+      }),
+    ]);
+    const pendingCount = new Set(
+      pendingRecords.filter((r) => !isTestProduct(r.productName)).map((r) => r.transactionId)
+    ).size;
 
     const monthlyMap = new Map<string, MonthlyStat>();
     const productMap = new Map<string, ProductRankingEntry>();
     let cumulativeRevenue = 0;
     let totalQuantity = 0;
-    let pendingCount = 0;
     let shippingRevenue = 0;
     let expenseTotal = 0;
 
@@ -90,7 +101,6 @@ export async function GET(
 
       cumulativeRevenue += record.totalAmount;
       totalQuantity += record.quantity;
-      if (record.status === "未発送") pendingCount += 1;
       if (month === currentMonthKey) currentMonthRevenue += record.totalAmount;
     }
 

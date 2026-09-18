@@ -22,7 +22,7 @@ export function KpiCards({ kpi, rangeStart, rangeEnd }: KpiCardsProps) {
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground">
-        「当月売上」以外は表示期間（{rangeStart} 〜 {rangeEnd ?? "現在"}）の集計です。
+        「当月売上」「未対応注文数」以外は表示期間（{rangeStart} 〜 {rangeEnd ?? "現在"}）の集計です。「未対応注文数」は発送管理パネルと同じく、期間に関わらず現在未発送の注文をすべて数えています。
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => (
