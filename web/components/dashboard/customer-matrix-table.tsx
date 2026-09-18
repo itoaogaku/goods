@@ -262,9 +262,14 @@ export function CustomerMatrixTable({ ledger }: CustomerMatrixTableProps) {
                     >
                       {row.transactionId}
                     </TableCell>
-                    <TableCell className={cn("sticky left-24 z-10 w-32 max-w-32 truncate", STICKY_CELL_BG[row.rowKind])}>
-                      {/* 陸上部の卸し（購買会など）や手入力販売はWix連携が無く顧客名が空なので、
-                          代わりに備考（卸し先・宛名など）を表示する */}
+                    <TableCell
+                      className={cn("sticky left-24 z-10 w-32 max-w-32 truncate", STICKY_CELL_BG[row.rowKind])}
+                      title={
+                        // 陸上部の卸し（購買会など）や手入力販売はWix連携が無く顧客名が空なので、
+                        // 代わりに備考（卸し先・宛名など）を表示する
+                        row.customerName || (row.rowKind === "order" ? row.memo : "") || ROW_LABEL[row.rowKind]
+                      }
+                    >
                       {row.customerName || (row.rowKind === "order" ? row.memo : "") || ROW_LABEL[row.rowKind]}
                     </TableCell>
                     <TableCell
