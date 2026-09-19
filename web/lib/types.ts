@@ -149,6 +149,8 @@ export interface ProductPriceEntry {
   insiderPrice: number | null;
   wholesalePrice: number | null;
   coopWholesalePrice: number | null;
+  /** ACC（水上村・町田）と陸上部（陸上部・購買会）、全拠点合計の現在庫数。 */
+  totalStock: number;
 }
 
 /**

@@ -62,7 +62,12 @@ function getNullableNumber(prop: NotionProperty | undefined): number | null {
   return prop.number;
 }
 
-function pageToProductPriceEntry(page: PageObjectResponse): ProductPriceEntry {
+// totalStock is derived (from computeStockBalances) rather than a Notion
+// property, so the raw per-page parse omits it — only listProducts(), which
+// actually has the balances on hand, attaches it.
+type RawProductEntry = Omit<ProductPriceEntry, "totalStock">;
+
+function pageToProductPriceEntry(page: PageObjectResponse): RawProductEntry {
   const p = page.properties;
   return {
     pageId: page.id,
@@ -76,7 +81,7 @@ function pageToProductPriceEntry(page: PageObjectResponse): ProductPriceEntry {
   };
 }
 
-async function queryAllProducts(notion: Client): Promise<ProductPriceEntry[]> {
+async function queryAllProducts(notion: Client): Promise<RawProductEntry[]> {
   const dataSourceId = await getProductsDataSourceId();
   const rows = await withNotionRetry(() => collectAllDataSourceRows(notion, { data_source_id: dataSourceId }));
   return rows.filter(isFullPage).map(pageToProductPriceEntry);
@@ -95,28 +100,41 @@ async function queryAllProducts(notion: Client): Promise<ProductPriceEntry[]> {
  */
 export async function listProducts(): Promise<ProductPriceEntry[]> {
   const notion = getNotionClient();
-  const [allEntries, balances] = await Promise.all([queryAllProducts(notion), computeStockBalances("acc")]);
+  const [allEntries, accBalances, trackteamBalances] = await Promise.all([
+    queryAllProducts(notion),
+    computeStockBalances("acc"),
+    computeStockBalances("trackteam"),
+  ]);
   // Notion上のデータ自体は触らないので、Wix同期の重複作成判定には影響しない
   // （fetchExistingProducts参照）。
   const entries = allEntries.filter((e) => !isTestProduct(e.productName));
 
   const firstStockInByProduct = new Map<string, string | null>();
-  for (const b of balances) {
+  for (const b of accBalances) {
     if (!firstStockInByProduct.has(b.productName)) firstStockInByProduct.set(b.productName, b.firstStockInDate);
   }
 
-  return entries.sort((a, b) => {
-    const dateA = firstStockInByProduct.get(a.productName);
-    const dateB = firstStockInByProduct.get(b.productName);
-    if (dateA && dateB) return dateA.localeCompare(dateB) || compareProductNames(a.productName, b.productName);
-    if (dateA) return -1;
-    if (dateB) return 1;
-    return compareProductNames(a.productName, b.productName);
-  });
+  // アーカイブ判定（料金表一覧で全拠点在庫0の商品を下部に隠す）のための、
+  // ACC・陸上部の全拠点合計の現在庫数。
+  const totalStockByProduct = new Map<string, number>();
+  for (const b of [...accBalances, ...trackteamBalances]) {
+    totalStockByProduct.set(b.productName, (totalStockByProduct.get(b.productName) ?? 0) + b.quantity);
+  }
+
+  return entries
+    .map((e) => ({ ...e, totalStock: totalStockByProduct.get(e.productName) ?? 0 }))
+    .sort((a, b) => {
+      const dateA = firstStockInByProduct.get(a.productName);
+      const dateB = firstStockInByProduct.get(b.productName);
+      if (dateA && dateB) return dateA.localeCompare(dateB) || compareProductNames(a.productName, b.productName);
+      if (dateA) return -1;
+      if (dateB) return 1;
+      return compareProductNames(a.productName, b.productName);
+    });
 }
 
 /** Every existing row indexed by Wix product ID, for the sync's create-vs-update decision. */
-export async function fetchExistingProducts(): Promise<Map<string, ProductPriceEntry>> {
+export async function fetchExistingProducts(): Promise<Map<string, RawProductEntry>> {
   const notion = getNotionClient();
   const entries = await queryAllProducts(notion);
   return new Map(entries.filter((e) => e.wixProductId).map((e) => [e.wixProductId, e]));
